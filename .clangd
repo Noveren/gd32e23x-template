@@ -1,0 +1,12 @@
+{
+    "Diagnostics": {
+        "UnusedIncludes": "None",
+        "Suppress": [
+            "-Wmain-return-type",
+            "pp_including_mainfile_in_preamble"
+        ]
+    },
+    "InlayHints": {
+        "Enabled": "No"
+    }
+}
