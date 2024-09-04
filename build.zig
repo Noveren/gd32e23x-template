@@ -64,6 +64,10 @@ pub fn build(b: *std.Build) !void {
         elf.defineCMacro("GD32E23X_USE_USART", null);
         elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_usart.c") });
     }
+    if (b.option(bool, "dma", "Use peripheral dma. (default 'false')") orelse false) {
+        elf.defineCMacro("GD32E23X_USE_DMA", null);
+        elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_dma.c") });
+    }
     if (b.option(bool, "spi", "Use peripheral spi. (default 'false')") orelse false) {
         elf.defineCMacro("GD32E23X_USE_SPI", null);
         elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_spi.c") });
