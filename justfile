@@ -8,7 +8,7 @@ build name=default_name:
     -Dstartup="./src/startup.s" \
     -Dgpio \
     -Dinc="./src" \
-    -Dsrc="./src/main.c" \
+    -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/bsp.c" \
     -Dmacro="DEBUG;" \
     -Dinfo=true \
     -Dclangd=true \
@@ -29,4 +29,4 @@ dump name=default_name:
 
 flash name=default_name:
     pyocd list
-    pyocd flash --target gd32f103c8 ./zig-out/bin/{{name}}.bin
+    pyocd flash --target gd32e230k8 ./zig-out/bin/{{name}}.bin

@@ -126,12 +126,12 @@ g_pfnVectors:
 .set  \Handler_Name, Default_Handler
 .endm
 /*
-*/
                 Set_Default_Handler  NMI_Handler
                 Set_Default_Handler  HardFault_Handler
                 Set_Default_Handler  SVC_Handler
                 Set_Default_Handler  PendSV_Handler
                 Set_Default_Handler  SysTick_Handler
+*/
                 
                 Set_Default_Handler  WWDGT_IRQHandler
                 Set_Default_Handler  LVD_IRQHandler
