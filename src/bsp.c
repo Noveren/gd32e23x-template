@@ -2,9 +2,9 @@
 #include "gd32e23x.h"
 #include "bsp.h"
 
-volatile bool __BSP_UART_RECEIVE_COMPLETE = false;
-volatile uint32_t __BSP_UART_RECEIVE_COUNTER = 0;
-uint8_t __BSP_UART_RECEIVE_BUF[BSP_UART_RECEIVE_BUF_LENGTH] = { 0 };
+volatile RingQ __uart_receive_ringq;
+#define UART_RECEIVE_RINGQ_SIZE 512
+static uint8_t uart_receive_ringq_space[UART_RECEIVE_RINGQ_SIZE];
 
 /// 1. 灯光控制：占有外设 PA15；
 /// 2. 阻塞延时：占有外设 Systick；
@@ -35,9 +35,13 @@ void bsp_init(void) {
     usart_stop_bit_set(USART0, USART_STB_1BIT);
     usart_oversample_config(USART0, USART_OVSMOD_8);
     usart_baudrate_set(USART0, 115200);
+
+    ringq_init((RingQ*)(&__uart_receive_ringq), UART_RECEIVE_RINGQ_SIZE, uart_receive_ringq_space);
+
     usart_receive_fifo_enable(USART0);
-    usart_receiver_timeout_threshold_config(USART0, 18);
+    usart_receiver_timeout_threshold_config(USART0, 18); // a magic number based on baudrate 115200
     nvic_irq_enable(USART0_IRQn, 3);
+    usart_interrupt_disable(USART0, USART_INT_RBNE);
 }
 
 void bsp_pa15_led_on(void)     { GPIO_BC(GPIOA)  = (uint32_t)(GPIO_PIN_15); }
@@ -65,13 +69,22 @@ void bsp_systick_delay_await_ms(uint32_t ms) {
         }
     }
 }
-
 void bsp_uart_enable(void)           { USART_CTL0(USART0) |= USART_CTL0_UEN;    }
 void bsp_uart_disable(void)          { USART_CTL0(USART0) &= ~(USART_CTL0_UEN); }
 void bsp_uart_transmit_enable(void)  { USART_CTL0(USART0) |= USART_CTL0_TEN;    }
 void bsp_uart_transmit_disable(void) { USART_CTL0(USART0) &= ~USART_CTL0_TEN;   }
-void bsp_uart_receive_enable(void)   { USART_CTL0(USART0) |= USART_CTL0_REN;    }
-void bsp_uart_receive_disable(void)  { USART_CTL0(USART0) &= ~USART_CTL0_REN;   }
+
+void bsp_uart_receive_enable(void) {
+    usart_receiver_timeout_enable(USART0); // 接收到一个字节后再接收一个字节，才启动超时检测
+    usart_receive_config(USART0, USART_RECEIVE_ENABLE);
+    usart_interrupt_enable(USART0, USART_INT_RBNE);
+}
+
+void bsp_uart_receive_disable(void) {
+    usart_receive_config(USART0, USART_RECEIVE_DISABLE);
+    usart_receiver_timeout_disable(USART0);
+    usart_interrupt_disable(USART0, USART_INT_RBNE);
+}
 
 /// 发送一个字节
 void bsp_uart_transmit_byte_await(const uint8_t byte) {
@@ -97,21 +110,31 @@ uint32_t bsp_uart_transmit_cstr_await(const char cstr[]) {
     return counter;
 }
 
-/// 接收串口数据（至少 2 字节）; 依赖中断
-/// 接收的串口数据保存在可用长度为 `UART_RECEIVE_BUF_LENGTH-1` 的缓冲区中, 数据末尾将自动添加 `\x00`;
-/// 若接收数据的长度超出缓冲区可用长度，则中止接收并返回 `NULL`
-const uint8_t* bsp_uart_receive_await(void) {
-    __BSP_UART_RECEIVE_COUNTER = 0;
-    __BSP_UART_RECEIVE_COMPLETE = false;
-    usart_receiver_timeout_enable(USART0); // 接收到一个字节后再接收一个字节，才启动超时检测
-    usart_interrupt_enable(USART0, USART_INT_RBNE);
-    while (!__BSP_UART_RECEIVE_COMPLETE);
+uint32_t bsp_uart_receive(uint8_t out[], uint32_t max_len) {
+    uint32_t counter = 0;
     usart_interrupt_disable(USART0, USART_INT_RBNE);
-    usart_receiver_timeout_disable(USART0);
-    return __BSP_UART_RECEIVE_COUNTER == BSP_UART_RECEIVE_BUF_LENGTH ? NULL : __BSP_UART_RECEIVE_BUF;
+    while (!ringq_is_empty(&__uart_receive_ringq)) {
+        if (counter >= max_len) {
+            break;
+        }
+        ringq_poll((RingQ*)(&__uart_receive_ringq), &out[counter]);
+        counter += 1;
+    }
+    usart_interrupt_enable(USART0, USART_INT_RBNE);
+    return counter;
 }
 
-/// 获得上一次接收到的串口数据的字节数量
-uint32_t bsp_uart_get_last_receive_len(void)  {
-    return __BSP_UART_RECEIVE_COUNTER;
+/// FIXME: 过长输入现象非理想
+uint32_t bsp_uart_receive_await(uint8_t out[], uint32_t max_len) {
+    for (;;) { // wait for data
+        usart_interrupt_disable(USART0, USART_INT_RBNE);
+        if (!ringq_is_empty(&__uart_receive_ringq)) {
+            usart_interrupt_enable(USART0, USART_INT_RBNE);
+            break;
+        } else {
+            usart_interrupt_enable(USART0, USART_INT_RBNE);
+            bsp_systick_delay_await_ms(100);
+        }
+    }
+    return bsp_uart_receive(out, max_len);
 }

@@ -26,23 +26,19 @@ void SysTick_Handler(void) {
 void USART0_IRQHandler(void) {
     if (usart_interrupt_flag_get(USART0, USART_INT_FLAG_RBNE)) {
         usart_interrupt_flag_clear(USART0, USART_INT_FLAG_RBNE_ORERR);
-        uint32_t counter = 0;
+        uint8_t data = 0;
         for (;;) {
             if (usart_flag_get(USART0, USART_FLAG_RT)) {
-                __BSP_UART_RECEIVE_BUF[counter] = '\0';
                 break;
             }
             if (usart_flag_get(USART0, USART_FLAG_RBNE)) {
-                __BSP_UART_RECEIVE_BUF[counter] = (uint8_t)(GET_BITS(USART_RDATA(USART0), 0U, 8U));
-                counter += 1;
-                if (counter == BSP_UART_RECEIVE_BUF_LENGTH) {
-                    break;
-                }
+                data = (uint8_t)(GET_BITS(USART_RDATA(USART0), 0U, 8U));
+                if (!ringq_is_full((RingQ*)(&__uart_receive_ringq))) {
+                    ringq_push((RingQ*)(&__uart_receive_ringq), data);
+                } // else ditch data
             }
         }
         usart_flag_clear(USART0, USART_FLAG_RT);
-        __BSP_UART_RECEIVE_COUNTER = counter;
-        __BSP_UART_RECEIVE_COMPLETE = true;
     } else {
         USART_INTC(USART0) |= (
               0b1 << 20
