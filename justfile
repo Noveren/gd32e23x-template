@@ -9,7 +9,7 @@ build name=default_name:
     -Dgpio \
     -Dusart \
     -Dinc="./src" \
-    -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/bsp.c;./src/ringq.c;" \
+    -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/gd32e23x_tool.c;./src/ringq.c;./src/tool.c;" \
     -Dmacro="DEBUG;" \
     -Dinfo=true \
     -Dclangd=true \
