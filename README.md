@@ -8,10 +8,10 @@
 
 + **基本结构**：`帧起始 帧类型 数据域 帧结束`
 
-|      帧类型       |                  数据域                   | 适用 |
-| :---------------: | :---------------------------------------: | :--: |
-| **控制帧** `0x01` |         `Command ByteCount Byte+`         | 下行 |
-| **文本帧** `0x10` | 可变长度 ASCII 字符编码，以 `'\x00'` 结尾 | 上行 |
-| **数据帧 **`0x20` |            `4ByteCount Byte+`             | 上行 |
+|        帧类型         |          数据域           | 适用 |
+| :-------------------: | :-----------------------: | :--: |
+| **控制帧** `!`/`0x21` | `Command ByteCount Byte+` | 下行 |
+| **文本帧** `"`/`0x22` |     `Uint32_t Byte+`      | 上行 |
+| **数据帧 **`$`/`0x24` |     `Uint32_t Byte+`      | 上行 |
 
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbccccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee

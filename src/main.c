@@ -1,8 +1,11 @@
 
 // TODO 协议帧头
+// TODO 在 FLASH 中保存程序装定信息（可读写）
+// TODO FRAM 访问
+// TODO ADC 采集
+// TODO 基于串口的任务选择执行框架
 
-#include "gd32e23x.h"
-#include "gd32e23x_tool.h"
+#include "main.h"
 
 #define RECEIVE_BUF_MAX_LEN 128
 
@@ -12,47 +15,57 @@ void app_init(void) {
     gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO_PIN_15);
     gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_2MHZ, GPIO_PIN_15);
     gpio_bit_set(GPIOA, GPIO_PIN_15);
+
+    tool_init();
+    tool_io_enable();
 }
 
 #define app_led_on()     do { GPIO_BC(GPIOA)  = (uint32_t)(GPIO_PIN_15); } while (0)
 #define app_led_off()    do { GPIO_BOP(GPIOA) = (uint32_t)(GPIO_PIN_15); } while (0)
 #define app_led_toggle() do { GPIO_TG(GPIOA)  = (uint32_t)(GPIO_PIN_15); } while (0)
 
-void main() {
-    tool_init();
-    app_init();
-
-    tool_io_enable();
-
-    tool_delay_ms(2000);
-    app_led_on();
-
-    char buf[128] = { 0 };
+/// Wait for input (no more than `capacity-1`) within x mins,
+/// otherwise the return value will be `NULL`.
+const char* app_get_input_within_x_mins(char* buf, const uint16_t capacity, const uint32_t min) {
     uint16_t len = 0;
-
-    tool_io_puts("Waiting fo input in x min.\n");
-    uint32_t min = 1;
+    const char* input = NULL;
     for (uint32_t n100ms = min * 600; n100ms > 0; n100ms--) {
-        len = tool_io_gets_now(buf, 128);
-        if (len == 0) {
+        input = tool_io_gets_now(buf, 128);
+        if (input == NULL) {
             tool_delay_ms(100);
         } else {
             break;
         }
     }
-    if (len == 0) {
-        tool_io_puts("No input.\n");
+    return input;
+}
+
+#define APP_INPUT_BUF_SIZE 128
+
+void main() {
+    app_init();
+
+    tool_delay_ms(2000);
+    app_led_on();
+
+    char input_buf[APP_INPUT_BUF_SIZE] = { 0 };
+    const char* input = NULL;
+
+    tool_io_log_debug("Wait for input within 1 minute, otherwise the default task will be executed.");
+    input = app_get_input_within_x_mins(input_buf, APP_INPUT_BUF_SIZE, 1);
+
+    if (input == NULL) {
+        tool_io_log_debug("No input.");
+        tool_io_log_warn("Execute the default task.");
     } else {
-        tool_io_puts("Get input - ");
-        tool_io_puts(buf);
-        tool_io_putchar('\n');
+        do {
+            tool_io_log_info("Get input.");
+            tool_io_log_warn(input);
+            app_led_toggle();
+
+            tool_io_log_info("Wait for input.");
+            input = tool_io_gets(input_buf, APP_INPUT_BUF_SIZE);
+        } while (1);
     }
-    
-    for (;;) {
-        tool_io_puts("Waiting for input: ");
-        tool_io_gets(buf, 128);
-        tool_io_puts(buf);
-        tool_io_putchar('\n');
-        app_led_toggle();
-    }
+    tool_io_log_warn("System trun off.");
 }

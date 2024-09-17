@@ -11,14 +11,21 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define tool_STRLEN_MAX 256
+
+uint32_t tool_strlen(const char* cstr);
+
 #define NEED_IMPL extern
 
 NEED_IMPL void __impl_tool_init(void);
-void tool_init(void);
+/// TODO
+inline void tool_init(void) { __impl_tool_init(); }
 
 /// 微秒阻塞延时实现
 NEED_IMPL void __impl_tool_delay_us(uint32_t us);
+/// TODO
 inline void tool_delay_us(uint32_t us) { __impl_tool_delay_us(us); }
+/// TODO
 void tool_delay_ms(uint32_t ms);
 
 NEED_IMPL void __impl_tool_io_enable(void);
@@ -36,13 +43,57 @@ void tool_io_putbytes(const uint8_t bytes[], uint32_t len);
 /// 立刻获得一个字节数据，若无数据，则返回值小于 0
 NEED_IMPL int __impl_tool_io_getchar_now(void);
 
-uint16_t tool_io_gets_now(char* buf, uint16_t capacity);
-uint16_t tool_io_gets(char* buf, uint16_t capacity);
-// void tool_io_putframe_cstr(const char* cstr);
-// void tool_io_putframeheader_data(void);
-// void tool_io_putframe_data()
+const char* tool_io_gets_now(char* buf, uint16_t capacity);
+const char* tool_io_gets(char* buf, uint16_t capacity);
 
+void tool_io_putframe_header(uint8_t type, uint32_t len);
+void tool_io_putframe_footer(void);
 
+#define tool_io_FRAME_TYPE_CMD  '!'
+#define tool_io_FRAME_TYPE_TEXT '"'
+#define tool_io_FRAME_TYPE_DATA '$'
+#define tool_io_FRAME_PREFIX    '<'
+#define tool_io_FRAME_SUFFIX_0  '>'
+#define tool_io_FRAME_SUFFIX_1  '\n'
+inline void tool_io_putframe_header_text(uint32_t len) { tool_io_putframe_header(tool_io_FRAME_TYPE_TEXT, len); }
+inline void tool_io_putframe_header_data(uint32_t len) { tool_io_putframe_header(tool_io_FRAME_TYPE_DATA, len); }
+
+#define tool_LOG_LEVEL_DEBUG 0
+#define tool_LOG_LEVEL_INFO  1
+#define tool_LOG_LEVEL_WARN  2
+#define tool_LOG_LEVEL_ERROR 3
+
+#ifndef tool_LOG_LEVEL
+    #ifdef DEBUG
+        #define tool_LOG_LEVEL tool_LOG_LEVEL_DEBUG
+    #else
+        #define tool_LOG_LEVEL tool_LOG_LEVEL_INFO
+    #endif
+#endif
+
+#if tool_LOG_LEVEL <= tool_LOG_LEVEL_DEBUG
+    void tool_io_log_debug(const char* cstr);
+#else
+    #define tool_io_log_debug(cstr) do { /* None */ } while (0)
+#endif
+
+#if tool_LOG_LEVEL <= tool_LOG_LEVEL_INFO
+    void tool_io_log_info(const char* cstr);
+#else
+    #define tool_io_log_info(cstr) do { /* None */ } while (0)
+#endif
+
+#if tool_LOG_LEVEL <= tool_LOG_LEVEL_WARN
+    void tool_io_log_warn(const char* cstr);
+#else
+    #define tool_io_log_debug(cstr) do { /* None */ } while (0)
+#endif
+
+#if tool_LOG_LEVEL <= tool_LOG_LEVEL_ERROR
+    void tool_io_log_error(const char* cstr);
+#else
+    #define tool_io_log_error(cstr) do { /* None */ } while (0)
+#endif
 
 #undef NEED_IMPL
 #endif
