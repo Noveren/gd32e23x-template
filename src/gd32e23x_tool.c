@@ -88,9 +88,8 @@ int __impl_tool_io_getchar_now(void) {
     return (ret < 0) ? -1 : ret;
 }
 
-volatile uint8_t __impl_tool_rtc_delay_flag = 0;
 /// 参数均采用 BCD 格式, 采用 24 小时制, 赋值范围位 0x0-0x23, 0x0-0x59, 0x0-0x59
-void __impl_tool_rtc_delay(uint8_t hour, uint8_t minute, uint8_t second) {
+void __impl_tool_deepsleep_with_rtc(uint8_t hour, uint8_t minute, uint8_t second) {
     // CK_RTC 时钟源由备份域控制寄存器 RCU_BDCTL 的 RTCSRC[1:0] 控制,
     // 支持 HXTAL(11), LXTAL（01), IRC40K(10), 复位值为 00,
     // 该寄存器的部分位只有在电源控制器 PMU_CTL 中 BKPWEN 置位后才能改动
@@ -136,8 +135,8 @@ void __impl_tool_rtc_delay(uint8_t hour, uint8_t minute, uint8_t second) {
         exti_init(EXTI_17, EXTI_INTERRUPT, EXTI_TRIG_RISING);
         rtc_alarm_enable();
 
-        while (__impl_tool_rtc_delay_flag == 0);
-        __impl_tool_rtc_delay_flag = 1;
+        pmu_to_deepsleepmode(PMU_LDO_NORMAL, WFI_CMD);
+        SystemInit();
 
         rtc_alarm_disable();
         rtc_interrupt_disable(RTC_INT_ALARM);
