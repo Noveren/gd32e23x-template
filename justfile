@@ -8,6 +8,9 @@ build name=default_name:
     -Dstartup="./src/startup.s" \
     -Dgpio \
     -Dusart \
+    -Dpmu \
+    -Drtc \
+    -Dexti \
     -Dinc="./src" \
     -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/gd32e23x_tool.c;./src/ringq.c;./src/tool.c;" \
     -Dmacro="DEBUG;" \

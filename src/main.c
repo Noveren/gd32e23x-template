@@ -52,11 +52,16 @@ void main() {
     const char* input = NULL;
 
     tool_io_log_debug("Wait for input within 1 minute, otherwise the default task will be executed.");
-    input = app_get_input_within_x_mins(input_buf, APP_INPUT_BUF_SIZE, 1);
+    input = app_get_input_within_x_mins(input_buf, APP_INPUT_BUF_SIZE, 0);
 
     if (input == NULL) {
         tool_io_log_debug("No input.");
         tool_io_log_warn("Execute the default task.");
+
+        tool_io_log_debug("Wait for RTC alarm");
+        // TODO 时间不够精准 0:30->0:36, 1:30->1:36, 0:10->0:11
+        tool_rtc_delay(0x0, 0x00, 0x10);
+        tool_io_log_debug("RTC alarm");
     } else {
         do {
             tool_io_log_info("Get input.");

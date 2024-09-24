@@ -76,6 +76,18 @@ pub fn build(b: *std.Build) !void {
         elf.defineCMacro("GD32E23X_USE_ADC", null);
         elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_adc.c") });
     }
+    if (b.option(bool, "pmu", "Use peripheral pmu. (default 'false')") orelse false) {
+        elf.defineCMacro("GD32E23X_USE_PMU", null);
+        elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_pmu.c") });
+    }
+    if (b.option(bool, "rtc", "Use peripheral rtc. (default 'false')") orelse false) {
+        elf.defineCMacro("GD32E23X_USE_RTC", null);
+        elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_rtc.c") });
+    }
+    if (b.option(bool, "exti", "Use peripheral exti. (default 'false')") orelse false) {
+        elf.defineCMacro("GD32E23X_USE_EXTI", null);
+        elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_exti.c") });
+    }
     
     const option_include_dirs = b.option([]const u8, "inc", "The relative path to include dir for the program. (example './src;./src/lib' or './src;./src/lib;')");
     if (option_include_dirs) |include_dirs| {

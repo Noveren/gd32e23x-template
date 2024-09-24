@@ -95,5 +95,9 @@ inline void tool_io_putframe_header_data(uint32_t len) { tool_io_putframe_header
     #define tool_io_log_error(cstr) do { /* None */ } while (0)
 #endif
 
+NEED_IMPL void __impl_tool_rtc_delay(uint8_t hour, uint8_t minute, uint8_t second);
+/// 参数均采用 BCD 格式, 采用 24 小时制, 赋值范围位 0x0-0x23, 0x0-0x59, 0x0-0x59
+inline void tool_rtc_delay(uint8_t hour, uint8_t minute, uint8_t second) { __impl_tool_rtc_delay(hour, minute, second); }
+
 #undef NEED_IMPL
 #endif

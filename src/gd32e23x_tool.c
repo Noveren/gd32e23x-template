@@ -87,3 +87,65 @@ int __impl_tool_io_getchar_now(void) {
     usart_interrupt_enable(USART0, USART_INT_RBNE);
     return (ret < 0) ? -1 : ret;
 }
+
+volatile uint8_t __impl_tool_rtc_delay_flag = 0;
+/// 参数均采用 BCD 格式, 采用 24 小时制, 赋值范围位 0x0-0x23, 0x0-0x59, 0x0-0x59
+void __impl_tool_rtc_delay(uint8_t hour, uint8_t minute, uint8_t second) {
+    // CK_RTC 时钟源由备份域控制寄存器 RCU_BDCTL 的 RTCSRC[1:0] 控制,
+    // 支持 HXTAL(11), LXTAL（01), IRC40K(10), 复位值为 00,
+    // 该寄存器的部分位只有在电源控制器 PMU_CTL 中 BKPWEN 置位后才能改动
+    rcu_periph_clock_enable(RCU_PMU);
+    pmu_backup_write_enable();
+    rcu_osci_on(RCU_IRC40K);
+    rcu_osci_stab_wait(RCU_IRC40K);
+    rcu_rtc_clock_config(RCU_RTCSRC_IRC40K);
+    rcu_periph_clock_enable(RCU_RTC);
+    rtc_register_sync_wait();
+
+    rtc_parameter_struct rtc_init_param = {
+        .rtc_am_pm = RTC_AM,
+        .rtc_display_format = RTC_24HOUR,
+        .rtc_factor_asyn = 0x63,    // 异步分频值, 与时钟源有关
+        .rtc_factor_syn = 0x18F,    // 同步分频值, 与时钟源有关
+        // 当前时间，均采用 BCD 码
+        .rtc_year = 0x24,
+        .rtc_month = RTC_JAN,
+        .rtc_date = 0x01,
+        .rtc_day_of_week = RTC_MONDAY,
+        .rtc_hour = 0x0,
+        .rtc_minute = 0x0,
+        .rtc_second = 0x0,
+    };
+    if (rtc_init(&rtc_init_param) == SUCCESS) {
+        rtc_alarm_struct rtc_alarm_init_param = {
+            .rtc_am_pm = RTC_AM,
+            .rtc_weekday_or_date = RTC_ALARM_DATE_SELECTED,
+            .rtc_alarm_day = 0x01,
+            .rtc_alarm_mask =
+                RTC_ALARM_DATE_MASK
+            ,
+            // 闹钟时间, 均采用 BCD 码
+            .rtc_alarm_hour = hour,
+            .rtc_alarm_minute = minute,
+            .rtc_alarm_second = second,
+        };
+        rtc_alarm_config(&rtc_alarm_init_param);
+
+        nvic_irq_enable(RTC_IRQn, 0);
+        rtc_interrupt_enable(RTC_INT_ALARM);
+        exti_init(EXTI_17, EXTI_INTERRUPT, EXTI_TRIG_RISING);
+        rtc_alarm_enable();
+
+        while (__impl_tool_rtc_delay_flag == 0);
+        __impl_tool_rtc_delay_flag = 1;
+
+        rtc_alarm_disable();
+        rtc_interrupt_disable(RTC_INT_ALARM);
+        nvic_irq_disable(RTC_IRQn);
+    }
+
+    rcu_osci_off(RCU_IRC40K);
+    rcu_periph_clock_disable(RCU_RTC);
+    pmu_backup_write_disable();
+    rcu_periph_clock_disable(RCU_PMU);
+}

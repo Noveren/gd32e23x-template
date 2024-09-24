@@ -54,3 +54,12 @@ void USART0_IRQHandler(void) {
     }
     NVIC_ClearPendingIRQ(USART0_IRQn);
 }
+
+extern volatile uint8_t __impl_tool_rtc_delay_flag;
+void RTC_IRQHandler(void) {
+    if (RESET != rtc_flag_get(RTC_STAT_ALRM0F)) {
+        rtc_flag_clear(RTC_STAT_ALRM0F);
+        exti_flag_clear(EXTI_17);
+        __impl_tool_rtc_delay_flag = !0;
+    }
+}
