@@ -27,19 +27,39 @@ static int app_strcmp(const char* str1, const char* str2);
 
 /// 可以并能够借用 `app_init` 中初始化后的资源；其他资源使用后应该恢复原状
 typedef void(*app_TaskFn)(void);
-static void app_task_get_info(void);
-static void app_task_get_data(void);
+static void app_task_get_fram_id(void);
+static void app_task_get_fram_status_register(void);
+static void app_task_get_fram_data(void);
+static void app_task_set_fram_write_enable(void);
+static void app_task_set_fram_clean(void);
+
+// static void app_task_collect_signal(void);
+// static void app_task_collect_signal_with_triger(void);
 
 static app_TaskFn app_TASK_TABLE[] = {
-    app_task_get_info,
-    app_task_get_data,
+    /// return-data: 9 bytes - The id of the device
+    app_task_get_fram_id,
+    /// return-data: 1 byte - The value of the status register
+    app_task_get_fram_status_register,
+    /// return-data: app_FRAM_CAPACITY bytes - All data
+    app_task_get_fram_data,
+    /// return-data: 1 byte - The value of the status register
+    app_task_set_fram_write_enable,
+    /// return-data: 1 byte - Success(0) or Failed(1)
+    app_task_set_fram_clean,
 };
 
 static int8_t app_parse_command(const char* input) {
-    if (0 == app_strcmp(input, "<!info>"))
+    if (0 == app_strcmp(input, "<!get_fram_id>"))
         return 0;
-    if (0 == app_strcmp(input, "<!data>"))
+    if (0 == app_strcmp(input, "<!get_fram_status_register>"))
         return 1;
+    if (0 == app_strcmp(input, "<!get_fram_data>"))
+        return 2;
+    if (0 == app_strcmp(input, "<!set_fram_write_enable>"))
+        return 3;
+    if (0 == app_strcmp(input, "<!set_fram_clean>"))
+        return 4;
     return -1;
 }
 
@@ -110,44 +130,22 @@ static int app_strcmp(const char* str1, const char* str2) {
     return ret;
 }
 
-typedef struct {
-    uint8_t manufacture_id[7];
-    uint16_t framily: 3;
-    uint16_t density: 5;
-    uint16_t sub    : 2;
-    uint16_t rev    : 3;
-    uint16_t rsvd   : 3;
-} app_FRAM_ID;
+static void app_task_get_fram_id(void) {
+    tool_io_log_info("Execute `app_task_get_fram_id`.");
 
-typedef enum {
-    app_FRAM_OPCODE_NOP   = 0b00000000,
-    app_FRAM_OPCODE_WREN  = 0b00000110,
-    app_FRAM_OPCODE_WRDI  = 0b00000100,
-    app_FRAM_OPCODE_RDSR  = 0b00000101,
-    app_FRAM_OPCODE_WRSR  = 0b00000001,
-    app_FRAM_OPCODE_READ  = 0b00000011,
-    app_FRAM_OPCODE_FSTRD = 0b00001011,
-    app_FRAM_OPCODE_WRITE = 0b00000010,
-    app_FRAM_OPCODE_SLEEP = 0b10111001,
-    app_FRAM_OPCODE_RDID  = 0b10011111,
-} app_FRAM_OPCODE;
+    app_FRAM_ID id = { 0 };
 
-static void app_task_get_info(void) {
-    tool_io_log_info("Execute `app_task_get_info`.");
-
-    app_FRAM_ID id;
-    
     tool_spi_init();
-
     tool_spi_enable();
     tool_spi_select();
+
     tool_spi_access_data(app_FRAM_OPCODE_RDID);
     for (int i = 0; i < 9; i++) {
-        ((uint8_t*)(&id))[i] = tool_spi_access_data(app_FRAM_OPCODE_RDID);
+        ((uint8_t*)(&id))[i] = tool_spi_access_data(app_FRAM_OPCODE_NOP);
     }
+
     tool_spi_release();
     tool_spi_disable();
-
     tool_spi_deinit();
 
     tool_io_putframe_header_data(9);
@@ -155,6 +153,111 @@ static void app_task_get_info(void) {
     tool_io_putframe_footer();
 }
 
-static void app_task_get_data(void) {
-    tool_io_log_info("Execute `app_task_get_data`.");
+static void app_task_get_fram_status_register(void) {
+    tool_io_log_info("Execute `app_task_get_fram_status_register`.");
+
+    uint8_t reg = 0;
+
+    tool_spi_init();
+    tool_spi_enable();
+    tool_spi_select();
+
+    tool_spi_access_data(app_FRAM_OPCODE_RDSR);
+    reg = tool_spi_access_data(app_FRAM_OPCODE_NOP);
+
+    tool_spi_release();
+    tool_spi_disable();
+    tool_spi_deinit();
+
+    tool_io_putframe_header_data(1);
+    tool_io_putbyte(reg);
+    tool_io_putframe_footer();
+}
+
+static void app_task_get_fram_data(void) {
+    tool_io_log_info("Execute `app_task_get_fram_data`.");
+
+    tool_spi_init();
+    tool_spi_enable();
+    tool_spi_select();
+    tool_io_putframe_header_data(app_FRAM_CAPACITY);
+
+    tool_spi_access_data(app_FRAM_OPCODE_READ);
+    tool_spi_access_data(0x00);
+    tool_spi_access_data(0x00);
+    uint8_t byte = 0;
+    for (uint32_t i = 0; i < app_FRAM_CAPACITY; i++) {
+        byte = tool_spi_access_data(app_FRAM_OPCODE_NOP);
+        tool_io_putbyte(byte);
+    }
+
+    tool_io_putframe_footer();
+    tool_spi_release();
+    tool_spi_disable();
+    tool_spi_deinit();
+}
+
+static void app_task_set_fram_write_enable(void) {
+    tool_io_log_info("Execute `app_task_set_fram_write_enable`.");
+
+    tool_spi_init();
+
+    tool_spi_enable();
+    tool_spi_select();
+    tool_spi_access_data(app_FRAM_OPCODE_WREN);
+    tool_spi_release();
+    tool_spi_disable();
+
+    tool_delay_ms(1);
+
+    uint8_t reg = 0;
+    tool_spi_enable();
+    tool_spi_select();
+    tool_spi_access_data(app_FRAM_OPCODE_RDSR);
+    reg = tool_spi_access_data(app_FRAM_OPCODE_NOP);
+    tool_spi_release();
+    tool_spi_disable();
+
+    tool_spi_deinit();
+
+    tool_io_putframe_header_data(1);
+    tool_io_putbyte(reg);
+    tool_io_putframe_footer();
+}
+
+static void app_task_set_fram_clean(void) {
+    tool_io_log_info("Execute `app_task_set_fram_clean`.");
+
+    tool_spi_init();
+
+    uint8_t reg = 0;
+    tool_spi_enable();
+    tool_spi_select();
+    tool_spi_access_data(app_FRAM_OPCODE_RDSR);
+    reg = tool_spi_access_data(app_FRAM_OPCODE_NOP);
+    tool_spi_release();
+    tool_spi_disable();
+
+    if ((reg & 0x02) == 0) {
+        tool_io_putframe_header_data(1);
+        tool_io_putbyte(0x01);
+        tool_io_putframe_footer();
+    } else {
+        tool_spi_enable();
+        tool_spi_select();
+        tool_spi_access_data(app_FRAM_OPCODE_WRITE);
+        tool_spi_access_data(0x00);
+        tool_spi_access_data(0x00);
+        for (uint32_t i = 0; i < app_FRAM_CAPACITY; i++) {
+            tool_spi_access_data(0xFF);
+        }
+        tool_spi_release();
+        tool_spi_disable();
+
+        tool_io_putframe_header_data(1);
+        tool_io_putbyte(0x00);
+        tool_io_putframe_footer();
+    }
+
+    tool_spi_deinit();
 }
