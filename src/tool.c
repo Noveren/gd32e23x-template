@@ -3,7 +3,7 @@
 
 uint32_t tool_strlen(const char* cstr) {
     uint32_t len = 0;
-    for (; cstr[len] != '\x0' && len < tool_STRLEN_MAX; len++);
+    for (; len < tool_STRLEN_MAX && cstr[len] != '\x0'; len++);
     return len;
 }
 

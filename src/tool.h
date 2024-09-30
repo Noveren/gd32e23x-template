@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
+/// 当字符串长度超过最大值时，相关函数行为异常
 #define tool_STRLEN_MAX 256
 
 uint32_t tool_strlen(const char* cstr);
