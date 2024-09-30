@@ -18,9 +18,16 @@ uint32_t tool_strlen(const char* cstr);
 
 #define NEED_IMPL extern
 
-NEED_IMPL void __impl_tool_init(void);
-/// TODO
-inline void tool_init(void) { __impl_tool_init(); }
+NEED_IMPL void __impl_tool_delay_init(void);
+NEED_IMPL void __impl_tool_io_init(void);
+/// 初始化 `tool_delay` 和 `tool_io` 并保持全局可用
+/// 其他功能可直接使用或需要单独初始化：
+///
+/// + `tool_deepsleep`: 直接使用
+inline void tool_init(void) {
+    __impl_tool_delay_init();
+    __impl_tool_io_init();
+}
 
 /// 微秒阻塞延时实现
 NEED_IMPL void __impl_tool_delay_us(uint32_t us);

@@ -5,13 +5,15 @@
 static RingQ __impl_tool_io_getchar_ringq;
 static uint8_t __impl_tool_io_getchar_ringq_space[__impl_tool_io_getchar_RINGQ_SIZE];
 
-void __impl_tool_init(void) {
+void __impl_tool_delay_init(void) {
     /* systick init */
     systick_clksource_set(SYSTICK_CLKSOURCE_HCLK);
     uint32_t us_ticks = SystemCoreClock / 1000000UL;
     SysTick->LOAD = (uint32_t)(us_ticks - 1UL);
     nvic_irq_disable(SysTick_IRQn);
+}
 
+void __impl_tool_io_init(void) {
     /* usart init */
     rcu_periph_clock_enable(RCU_GPIOB);
     gpio_mode_set(GPIOB, GPIO_MODE_AF, GPIO_PUPD_PULLDOWN, GPIO_PIN_6 | GPIO_PIN_7);
