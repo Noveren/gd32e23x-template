@@ -20,6 +20,10 @@ uint32_t tool_strlen(const char* cstr);
 
 NEED_IMPL void __impl_tool_delay_init(void);
 NEED_IMPL void __impl_tool_io_init(void);
+
+NEED_IMPL void __impl_tool_spi_init(void);
+NEED_IMPL void __impl_tool_spi_deinit(void);
+
 /// 初始化 `tool_delay` 和 `tool_io` 并保持全局可用
 /// 其他功能可直接使用或需要单独初始化：
 ///
@@ -29,12 +33,16 @@ inline void tool_init(void) {
     __impl_tool_io_init();
 }
 
+/// ===============================================================
+
 /// 微秒阻塞延时实现
 NEED_IMPL void __impl_tool_delay_us(uint32_t us);
 /// TODO
 inline void tool_delay_us(uint32_t us) { __impl_tool_delay_us(us); }
 /// TODO
 void tool_delay_ms(uint32_t ms);
+
+/// ===============================================================
 
 NEED_IMPL void __impl_tool_io_enable(void);
 NEED_IMPL void __impl_tool_io_disable(void);
@@ -103,9 +111,28 @@ inline void tool_io_putframe_header_data(uint32_t len) { tool_io_putframe_header
     #define tool_io_log_error(cstr) do { /* None */ } while (0)
 #endif
 
+/// ===============================================================
+
 NEED_IMPL void __impl_tool_deepsleep_with_rtc(uint8_t hour, uint8_t minute, uint8_t second);
 /// 参数均采用 BCD 格式, 采用 24 小时制, 赋值范围位 0x0-0x23, 0x0-0x59, 0x0-0x59
 inline void tool_deepsleep_with_rtc(uint8_t hour, uint8_t minute, uint8_t second) { __impl_tool_deepsleep_with_rtc(hour, minute, second); }
+
+/// ===============================================================
+#define tool_spi_init() do { __impl_tool_spi_init(); } while (0)
+#define tool_spi_deinit() do { __impl_tool_spi_deinit(); } while (0)
+
+NEED_IMPL void __impl_tool_spi_enable(void);
+NEED_IMPL void __impl_tool_spi_disable(void);
+#define tool_spi_enable() do { __impl_tool_spi_enable(); } while (0)
+#define tool_spi_disable() do { __impl_tool_spi_disable(); } while (0)
+
+NEED_IMPL void __impl_tool_spi_select(void);
+NEED_IMPL void __impl_tool_spi_release(void);
+#define tool_spi_select() do { __impl_tool_spi_select(); } while (0)
+#define tool_spi_release() do { __impl_tool_spi_release(); } while (0)
+
+NEED_IMPL uint8_t __impl_tool_spi_access_data(uint8_t byte);
+inline uint8_t tool_spi_access_data(uint8_t byte) { return __impl_tool_spi_access_data(byte); }
 
 #undef NEED_IMPL
 #endif

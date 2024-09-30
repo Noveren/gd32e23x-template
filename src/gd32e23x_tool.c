@@ -150,3 +150,56 @@ void __impl_tool_deepsleep_with_rtc(uint8_t hour, uint8_t minute, uint8_t second
     pmu_backup_write_disable();
     rcu_periph_clock_disable(RCU_PMU);
 }
+
+void __impl_tool_spi_init(void) {
+    rcu_periph_clock_enable(RCU_GPIOA);
+    gpio_mode_set(GPIOA, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO_PIN_4);
+    gpio_mode_set(GPIOA, GPIO_MODE_AF, GPIO_PUPD_PULLDOWN, 
+        GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7
+    );
+
+    spi_i2s_deinit(SPI0);
+    rcu_periph_clock_enable(RCU_SPI0);
+    spi_parameter_struct spi0_init = {
+        .device_mode          = SPI_MASTER,
+        .trans_mode           = SPI_TRANSMODE_FULLDUPLEX,
+        .frame_size           = SPI_FRAMESIZE_8BIT,
+        .nss                  = SPI_NSS_SOFT,
+        .endian               = SPI_ENDIAN_MSB,
+        .clock_polarity_phase = SPI_CK_PL_LOW_PH_1EDGE,
+        .prescale             = SPI_PSC_4,
+    };
+    spi_init(SPI0, &spi0_init);
+    spi_nss_output_enable(SPI0);
+}
+
+void __impl_tool_spi_deinit(void) {
+    // TODO 需要怎么处理引脚
+    rcu_periph_clock_enable(RCU_SPI0);
+    spi_i2s_deinit(SPI0);
+    rcu_periph_clock_disable(RCU_SPI0);
+}
+
+void __impl_tool_spi_enable(void) {
+    SPI_CTL0(SPI0) |= (uint32_t)( SPI_CTL0_SPIEN);
+}
+
+void __impl_tool_spi_disable(void) {
+    SPI_CTL0(SPI0) &= (uint32_t)(~SPI_CTL0_SPIEN);
+}
+
+void __impl_tool_spi_select(void) {
+    SPI_CTL0(SPI0) &= (uint32_t)(~SPI_CTL0_SWNSS);
+}
+
+void __impl_tool_spi_release(void) {
+    SPI_CTL0(SPI0) |= (uint32_t)( SPI_CTL0_SWNSS);
+}
+
+
+uint8_t __impl_tool_spi_access_data(uint8_t byte) {
+    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+    SPI_DATA(SPI0) = ((uint32_t)(byte));
+    while(!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_RBNE)));
+    return (uint8_t)SPI_DATA(SPI0);
+}
