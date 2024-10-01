@@ -29,11 +29,13 @@ void USART0_IRQHandler(void) {
         usart_interrupt_flag_clear(USART0, USART_INT_FLAG_RBNE_ORERR);
         // WARN: 串口响应速度需要足够快
         for (;;) {
+            if (usart_flag_get(USART0, USART_FLAG_RT)) {
+                usart_flag_clear(USART0, USART_FLAG_RT);
+                break;
+            }
             if (usart_flag_get(USART0, USART_FLAG_RBNE)) {
                 // The overflow data will be ditched without any warning
                 __impl_tool_io_getchar_ringq_push((uint8_t)(GET_BITS(USART_RDATA(USART0), 0U, 8U)));
-            } else {
-                break;
             }
         }
     } else {

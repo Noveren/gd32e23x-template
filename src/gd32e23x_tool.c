@@ -34,7 +34,7 @@ void __impl_tool_io_init(void) {
         __impl_tool_io_getchar_ringq_space
     );
 
-    // usart_receiver_timeout_threshold_config(USART0, 18); // a magic number based on baudrate 115200
+    usart_receiver_timeout_threshold_config(USART0, 18); // a magic number based on baudrate 115200
     nvic_irq_enable(USART0_IRQn, 3);
     usart_interrupt_disable(USART0, USART_INT_RBNE); // USART0 只使用 USART_INT_RBNE
 }
@@ -58,7 +58,7 @@ void __impl_tool_io_enable(void) {
     usart_interrupt_enable(USART0, USART_INT_RBNE);
     usart_receive_config(USART0, USART_RECEIVE_ENABLE);
 
-    // usart_receiver_timeout_enable(USART0); // 接收到一个字节后再接收一个字节，才启动超时检测
+    usart_receiver_timeout_enable(USART0); // FIXME: 接收到一个字节后再接收一个字节，才启动超时检测
 }
 
 void __impl_tool_io_disable(void) {
@@ -71,7 +71,7 @@ void __impl_tool_io_disable(void) {
     usart_interrupt_disable(USART0, USART_INT_RBNE);
     usart_receive_fifo_disable(USART0);
 
-    // usart_receiver_timeout_disable(USART0);
+    usart_receiver_timeout_disable(USART0);
 }
 
 void __impl_tool_io_putbyte(const uint8_t byte) {
