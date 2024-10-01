@@ -7,12 +7,16 @@ uint32_t tool_strlen(const char* cstr) {
     return len;
 }
 
-static uint8_t tool_ascii_number_hex(const uint8_t raw) {
-    if (raw > 0x0F) {
-        return '?';
-    } else {
-        return raw <= 0x09 ? raw+0x30 : raw+0x37;
-    }
+uint8_t tool_utils_byte2number_0x0F(uint8_t byte) {
+    uint8_t raw = byte & 0x0F;
+    return raw <= 0x09 ? raw+0x30 : raw+0x37;
+}
+
+uint16_t tool_utils_byte2ascii(uint8_t byte) {
+    uint16_t ret = 0x0000;
+    ((uint8_t*)&ret)[0] = tool_utils_byte2number_0x0F((byte & 0x0F)     );
+    ((uint8_t*)&ret)[1] = tool_utils_byte2number_0x0F((byte & 0xF0) >> 4);
+    return ret;
 }
 
 #define MAX_UINT32_T 0xFFFFFFFFU
@@ -47,6 +51,26 @@ int tool_io_puts(const char* cstr) {
 void tool_io_putbytes(const uint8_t bytes[], uint32_t len) {
     for (uint32_t i = 0; i < len; i++) {
         __impl_tool_io_putbyte(bytes[i]);
+    }
+}
+
+void tool_io_putbytes_reverse(const uint8_t bytes[], uint32_t len) {
+    for (uint32_t i = len; i > 0; i--) {
+        __impl_tool_io_putbyte(bytes[i-1]);
+    }
+}
+
+void tool_io_putbytes_text(const uint8_t bytes[], uint32_t len, char prefix) {
+    for (uint32_t i = 0; i < len; i++) {
+        (prefix != 0) ? tool_io_putchar(prefix) : 0;
+        tool_io_putword(tool_utils_byte2ascii(bytes[i]));
+    }
+}
+
+void tool_io_putbytes_reverse_text(const uint8_t bytes[], uint32_t len, char prefix) {
+    for (uint32_t i = len; i > 0; i--) {
+        (prefix != 0) ? tool_io_putchar(prefix) : 0;
+        tool_io_putword(tool_utils_byte2ascii(bytes[i-1]));
     }
 }
 
@@ -99,16 +123,19 @@ void tool_io_putframe_header(uint8_t type, uint32_t len) {
     __impl_tool_io_putbyte(type);
     __impl_tool_io_putbyte('0');
     __impl_tool_io_putbyte('x');
-    const uint8_t* ptr = (uint8_t*)(&len); // 小端顺序
-    for (int i = sizeof(uint32_t)/sizeof(uint8_t); i > 0; i--) {
-        __impl_tool_io_putbyte(tool_ascii_number_hex((ptr[i-1] & 0xF0) >> 4));
-        __impl_tool_io_putbyte(tool_ascii_number_hex((ptr[i-1] & 0x0F)     ));
-    }
+    tool_io_putbytes_reverse_text((uint8_t*)(&len), sizeof(uint32_t)/sizeof(uint8_t), '\x00');
+    __impl_tool_io_putbyte('|');
 }
 
 void tool_io_putframe_footer(void) {
     __impl_tool_io_putbyte(tool_io_FRAME_SUFFIX_0);
     __impl_tool_io_putbyte(tool_io_FRAME_SUFFIX_1);
+}
+
+void tool_io_putframe_text_bytes(const uint8_t bytes[], uint32_t len) {
+    tool_io_putframe_header_text(3 * len);
+    tool_io_putbytes_text(bytes, len, ' ');
+    tool_io_putframe_footer();
 }
 
 static void tool_io_log(const char* cstr, const char* level) {

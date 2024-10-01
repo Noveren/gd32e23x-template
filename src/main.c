@@ -38,17 +38,17 @@ static void app_task_get_adc_once(void);
 // static void app_task_collect_signal_with_triger(void);
 
 static app_TaskFn app_TASK_TABLE[] = {
-    /// return-data: 9 bytes - The id of the device
+    ///
     app_task_get_fram_id,
-    /// return-data: 1 byte - The value of the status register
+    ///
     app_task_get_fram_status_register,
-    /// return-data: app_FRAM_CAPACITY bytes - All data
+    ///
     app_task_get_fram_data,
-    /// return-data: 1 byte - The value of the status register
+    ///
     app_task_set_fram_write_enable,
-    /// return-data: 1 byte - Success(0) or Failed(1)
+    ///
     app_task_set_fram_clean,
-    /// return-data: 8 byte - The result of ADC
+    ///
     app_task_get_adc_once,
 };
 
@@ -102,7 +102,6 @@ void main() {
             } else {
                 app_TASK_TABLE[cmd_idx]();
             }
-            tool_io_log_info("Wait for input.");
             input = tool_io_gets(input_buf, APP_INPUT_BUF_SIZE);
         } while (1);
     }
@@ -153,9 +152,7 @@ static void app_task_get_fram_id(void) {
     tool_spi_disable();
     tool_spi_deinit();
 
-    tool_io_putframe_header_data(9);
-    tool_io_putbytes((uint8_t*)&id, 9);
-    tool_io_putframe_footer();
+    tool_io_putframe_text_bytes((uint8_t*)&id, 9);
 }
 
 static void app_task_get_fram_status_register(void) {
@@ -174,9 +171,7 @@ static void app_task_get_fram_status_register(void) {
     tool_spi_disable();
     tool_spi_deinit();
 
-    tool_io_putframe_header_data(1);
-    tool_io_putbyte(reg);
-    tool_io_putframe_footer();
+    tool_io_putframe_text_bytes(&reg, 1);
 }
 
 static void app_task_get_fram_data(void) {
@@ -225,9 +220,7 @@ static void app_task_set_fram_write_enable(void) {
 
     tool_spi_deinit();
 
-    tool_io_putframe_header_data(1);
-    tool_io_putbyte(reg);
-    tool_io_putframe_footer();
+    tool_io_putframe_text_bytes(&reg, 1);
 }
 
 static void app_task_set_fram_clean(void) {
@@ -244,8 +237,8 @@ static void app_task_set_fram_clean(void) {
     tool_spi_disable();
 
     if ((reg & 0x02) == 0) {
-        tool_io_putframe_header_data(1);
-        tool_io_putbyte(0x01);
+        tool_io_putframe_header_text(1);
+        tool_io_putbyte('1');
         tool_io_putframe_footer();
     } else {
         tool_spi_enable();
@@ -259,8 +252,8 @@ static void app_task_set_fram_clean(void) {
         tool_spi_release();
         tool_spi_disable();
 
-        tool_io_putframe_header_data(1);
-        tool_io_putbyte(0x00);
+        tool_io_putframe_header_text(1);
+        tool_io_putbyte('0');
         tool_io_putframe_footer();
     }
 
@@ -270,21 +263,14 @@ static void app_task_set_fram_clean(void) {
 static void app_task_get_adc_once(void) {
     tool_io_log_info("Execute `app_task_get_adc_once`.");
 
-    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
-    tool_io_putword(0xAABB);
+    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_0 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
 
     if (tool_adc_convert_once_async()) {
         while (!tool_adc_convert_ok_and_clear());
-        tool_io_putframe_header_data(8);
-        tool_io_putbytes((const uint8_t*)tool_adc_get_result(), 8);
-        tool_io_putframe_footer();
+        const uint8_t* result = (const uint8_t *)tool_adc_get_result();
+        tool_io_putframe_text_bytes(result, 8);
     } else {
-        tool_io_putframe_header_data(8);
-        for (int i = 0; i < 8; i++) {
-            tool_io_putbyte('?');
-        }
-        tool_io_putframe_footer();
+        tool_io_log_error("Failed to start a conversion.");
     }
-
     tool_adc_deinit();
 }

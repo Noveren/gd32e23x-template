@@ -17,6 +17,9 @@
 
 uint32_t tool_strlen(const char* cstr);
 
+uint8_t tool_utils_byte2number_0x0F(uint8_t byte);
+uint16_t tool_utils_byte2ascii(uint8_t byte);
+
 #define NEED_IMPL extern
 
 NEED_IMPL void __impl_tool_delay_init(void);
@@ -66,6 +69,10 @@ void tool_io_putword(const uint16_t word);
 inline void tool_io_putchar(const char ch) { __impl_tool_io_putbyte((uint8_t)(ch)); }
 int tool_io_puts(const char* cstr);
 void tool_io_putbytes(const uint8_t bytes[], uint32_t len);
+void tool_io_putbytes_reverse(const uint8_t bytes[], uint32_t len);
+void tool_io_putbytes_text(const uint8_t bytes[], uint32_t len, char prefix);
+void tool_io_putbytes_reverse_text(const uint8_t bytes[], uint32_t len, char prefix);
+
 
 /// 立刻获得一个字节数据，若无数据，则返回值小于 0
 NEED_IMPL int __impl_tool_io_getchar_now(void);
@@ -84,6 +91,7 @@ void tool_io_putframe_footer(void);
 #define tool_io_FRAME_SUFFIX_1  '\n'
 inline void tool_io_putframe_header_text(uint32_t len) { tool_io_putframe_header(tool_io_FRAME_TYPE_TEXT, len); }
 inline void tool_io_putframe_header_data(uint32_t len) { tool_io_putframe_header(tool_io_FRAME_TYPE_DATA, len); }
+void tool_io_putframe_text_bytes(const uint8_t bytes[], uint32_t len);
 
 #define tool_LOG_LEVEL_DEBUG 0
 #define tool_LOG_LEVEL_INFO  1
