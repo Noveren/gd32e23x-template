@@ -2,6 +2,7 @@
     "Diagnostics": {
         "UnusedIncludes": "None",
         "Suppress": [
+            "-Wpointer-to-int-cast",
             "-Wmain-return-type",
             "pp_including_mainfile_in_preamble"
         ]

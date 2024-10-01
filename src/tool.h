@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 /// 当字符串长度超过最大值时，相关函数行为异常
 #define tool_STRLEN_MAX 256
@@ -23,6 +24,15 @@ NEED_IMPL void __impl_tool_io_init(void);
 
 NEED_IMPL void __impl_tool_spi_init(void);
 NEED_IMPL void __impl_tool_spi_deinit(void);
+
+/// CHANNEL_0 ~ CHANNEL_3 对应 PA0 ~ PA3
+#define tool_adc_CHANNEL_0 0x01
+#define tool_adc_CHANNEL_1 0x02
+#define tool_adc_CHANNEL_2 0x04
+#define tool_adc_CHANNEL_3 0x08
+
+NEED_IMPL void __impl_tool_adc_init(const uint8_t tool_adc_CHANNEL);
+NEED_IMPL void __impl_tool_adc_deinit(void);
 
 /// 初始化 `tool_delay` 和 `tool_io` 并保持全局可用
 /// 其他功能可直接使用或需要单独初始化：
@@ -52,6 +62,7 @@ NEED_IMPL void __impl_tool_io_disable(void);
 /// 阻塞发送一个 byte 数据
 NEED_IMPL void __impl_tool_io_putbyte(const uint8_t byte);
 inline void tool_io_putbyte(const uint8_t byte) { __impl_tool_io_putbyte(byte); }
+void tool_io_putword(const uint16_t word);
 inline void tool_io_putchar(const char ch) { __impl_tool_io_putbyte((uint8_t)(ch)); }
 int tool_io_puts(const char* cstr);
 void tool_io_putbytes(const uint8_t bytes[], uint32_t len);
@@ -118,6 +129,7 @@ NEED_IMPL void __impl_tool_deepsleep_with_rtc(uint8_t hour, uint8_t minute, uint
 inline void tool_deepsleep_with_rtc(uint8_t hour, uint8_t minute, uint8_t second) { __impl_tool_deepsleep_with_rtc(hour, minute, second); }
 
 /// ===============================================================
+
 #define tool_spi_init() do { __impl_tool_spi_init(); } while (0)
 #define tool_spi_deinit() do { __impl_tool_spi_deinit(); } while (0)
 
@@ -133,6 +145,20 @@ NEED_IMPL void __impl_tool_spi_release(void);
 
 NEED_IMPL uint8_t __impl_tool_spi_access_data(uint8_t byte);
 inline uint8_t tool_spi_access_data(uint8_t byte) { return __impl_tool_spi_access_data(byte); }
+
+/// ===============================================================
+
+inline void tool_adc_init(const uint8_t tool_adc_CHANNEL) { __impl_tool_adc_init(tool_adc_CHANNEL); }
+#define tool_adc_deinit() do { __impl_tool_adc_deinit(); } while (0)
+
+NEED_IMPL bool __impl_tool_adc_convert_once_async(void);
+inline bool tool_adc_convert_once_async(void) { return __impl_tool_adc_convert_once_async(); }
+
+NEED_IMPL bool __impl_tool_adc_convert_ok_and_clear(void);
+inline bool tool_adc_convert_ok_and_clear(void) { return __impl_tool_adc_convert_ok_and_clear(); }
+
+NEED_IMPL const uint16_t* __impl_tool_adc_get_result(void);
+inline const uint16_t* tool_adc_get_result(void) { return __impl_tool_adc_get_result(); }
 
 #undef NEED_IMPL
 #endif

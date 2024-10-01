@@ -32,6 +32,7 @@ static void app_task_get_fram_status_register(void);
 static void app_task_get_fram_data(void);
 static void app_task_set_fram_write_enable(void);
 static void app_task_set_fram_clean(void);
+static void app_task_get_adc_once(void);
 
 // static void app_task_collect_signal(void);
 // static void app_task_collect_signal_with_triger(void);
@@ -47,6 +48,8 @@ static app_TaskFn app_TASK_TABLE[] = {
     app_task_set_fram_write_enable,
     /// return-data: 1 byte - Success(0) or Failed(1)
     app_task_set_fram_clean,
+    /// return-data: 8 byte - The result of ADC
+    app_task_get_adc_once,
 };
 
 static int8_t app_parse_command(const char* input) {
@@ -60,6 +63,8 @@ static int8_t app_parse_command(const char* input) {
         return 3;
     if (0 == app_strcmp(input, "<!set_fram_clean>"))
         return 4;
+    if (0 == app_strcmp(input, "<!get_adc_once>"))
+        return 5;
     return -1;
 }
 
@@ -260,4 +265,26 @@ static void app_task_set_fram_clean(void) {
     }
 
     tool_spi_deinit();
+}
+
+static void app_task_get_adc_once(void) {
+    tool_io_log_info("Execute `app_task_get_adc_once`.");
+
+    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
+    tool_io_putword(0xAABB);
+
+    if (tool_adc_convert_once_async()) {
+        while (!tool_adc_convert_ok_and_clear());
+        tool_io_putframe_header_data(8);
+        tool_io_putbytes((const uint8_t*)tool_adc_get_result(), 8);
+        tool_io_putframe_footer();
+    } else {
+        tool_io_putframe_header_data(8);
+        for (int i = 0; i < 8; i++) {
+            tool_io_putbyte('?');
+        }
+        tool_io_putframe_footer();
+    }
+
+    tool_adc_deinit();
 }

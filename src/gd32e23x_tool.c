@@ -203,3 +203,114 @@ uint8_t __impl_tool_spi_access_data(uint8_t byte) {
     while(!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_RBNE)));
     return (uint8_t)SPI_DATA(SPI0);
 }
+
+static uint16_t __impl_tool_adc_BUF[4] = { 0 };
+void __impl_tool_adc_init(const uint8_t tool_adc_CHANNEL) {
+    rcu_periph_clock_enable(RCU_ADC);
+
+    /// 采样编码
+    adc_resolution_config(ADC_RESOLUTION_12B);
+    adc_data_alignment_config(ADC_DATAALIGN_RIGHT);
+
+    /// ADC 采样时钟
+    rcu_osci_on(RCU_IRC28M);
+    rcu_osci_stab_wait(RCU_IRC28M);
+    rcu_adc_clock_config(RCU_ADC_IRC28M_DIV2);
+
+    /// 单次扫描模式
+    adc_special_function_config(ADC_CONTINUOUS_MODE, DISABLE);
+    adc_special_function_config(ADC_SCAN_MODE, ENABLE);
+    uint8_t RSQ_idx = 0;
+#define ADC_SAMPLETIME ADC_SAMPLETIME_13POINT5
+    if (tool_adc_CHANNEL == 0x00) {
+        adc_regular_channel_config(RSQ_idx++, ADC_CHANNEL_0, ADC_SAMPLETIME);
+
+    } else {
+        if (tool_adc_CHANNEL & tool_adc_CHANNEL_0) {
+            adc_regular_channel_config(RSQ_idx++, ADC_CHANNEL_0, ADC_SAMPLETIME);
+        }
+        if (tool_adc_CHANNEL & tool_adc_CHANNEL_1) {
+            adc_regular_channel_config(RSQ_idx++, ADC_CHANNEL_1, ADC_SAMPLETIME);
+        }
+        if (tool_adc_CHANNEL & tool_adc_CHANNEL_2) {
+            adc_regular_channel_config(RSQ_idx++, ADC_CHANNEL_2, ADC_SAMPLETIME);
+        }
+        if (tool_adc_CHANNEL & tool_adc_CHANNEL_3) {
+            adc_regular_channel_config(RSQ_idx++, ADC_CHANNEL_3, ADC_SAMPLETIME);
+        }
+    }
+#undef ADC_SAMPLETIME
+    adc_channel_length_config(ADC_REGULAR_CHANNEL, RSQ_idx);
+
+    rcu_periph_clock_enable(RCU_GPIOA);
+    gpio_mode_set(GPIOA, GPIO_MODE_ANALOG, GPIO_PUPD_PULLDOWN, (uint32_t)tool_adc_CHANNEL);
+
+    /// DMA 数据传送
+    rcu_periph_clock_enable(RCU_DMA);
+    dma_deinit(DMA_CH0);
+    dma_parameter_struct adc_to_memory = {
+        .periph_addr  = (uint32_t)(&ADC_RDATA),             /// target 为 32 位设备
+        .periph_width = DMA_PERIPHERAL_WIDTH_16BIT,
+        .memory_width = DMA_MEMORY_WIDTH_16BIT,
+        .periph_inc   = DMA_PERIPH_INCREASE_DISABLE,
+        .memory_inc   = DMA_MEMORY_INCREASE_ENABLE,
+        .direction    = DMA_PERIPHERAL_TO_MEMORY,
+        .number       = RSQ_idx,
+        .memory_addr  = (uint32_t)(&__impl_tool_adc_BUF),
+        .priority     = DMA_PRIORITY_HIGH,
+    };
+    dma_init(DMA_CH0, &adc_to_memory);
+    dma_memory_to_memory_disable(DMA_CH0);
+    dma_circulation_enable(DMA_CH0);
+    // dma_flag_clear(DMA_CH0, DMA_FLAG_FTF);
+    dma_channel_enable(DMA_CH0);
+
+    /// 外部触发
+    adc_external_trigger_config(ADC_REGULAR_CHANNEL, ENABLE);
+    adc_external_trigger_source_config(ADC_REGULAR_CHANNEL, ADC_EXTTRIG_REGULAR_NONE);
+
+    /// 启动并校准
+    adc_enable();
+    while (SET != (ADC_CTL1 & ADC_CTL1_ADCON));
+    tool_delay_us(1000);
+    adc_calibration_enable();
+    adc_dma_mode_enable();
+    adc_flag_clear(ADC_FLAG_STRC);
+}
+
+void __impl_tool_adc_deinit(void) {
+    adc_dma_mode_disable();
+    adc_disable();
+    dma_channel_disable(DMA_CH0);
+    /// TODO 检查 DMA 是否全部未使用，若是则关闭 DMA 时钟
+    rcu_osci_off(RCU_IRC28M);
+    rcu_periph_clock_disable(RCU_ADC);
+}
+
+bool __impl_tool_adc_convert_once_async(void) {
+    /// adc_flag_get(ADC_FLAG_STRC) == SET
+    if (ADC_STAT & ADC_FLAG_STRC) {
+        return false;
+    }
+    /// dma_flag_clear(DMA_CH0, DMA_FLAG_FTF);
+    DMA_INTC |= DMA_FLAG_ADD(DMA_FLAG_FTF, DMA_CH0);
+    /// adc_software_trigger_enable(ADC_REGULAR_CHANNEL);
+    ADC_CTL1 |= ADC_CTL1_SWRCST;
+    return true;
+}
+
+bool __impl_tool_adc_convert_ok_and_clear(void) {
+    /// dma_flag_get(DMA_CH0, DMA_FLAG_FTF) == SET
+    if (RESET != (DMA_INTF & DMA_FLAG_ADD(DMA_FLAG_FTF, DMA_CH0))) {
+        /// adc_flag_clear(ADC_FLAG_STRC);
+        ADC_STAT &= ~((uint32_t)ADC_FLAG_STRC);
+        /// dma_flag_clear(DMA_CH0, DMA_FLAG_FTF);
+        DMA_INTC |= DMA_FLAG_ADD(DMA_FLAG_FTF, DMA_CH0);
+        return true;
+    }
+    return false;
+}
+
+const uint16_t* __impl_tool_adc_get_result(void) {
+    return __impl_tool_adc_BUF;
+}

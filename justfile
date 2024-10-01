@@ -12,6 +12,8 @@ build name=default_name:
     -Drtc \
     -Dexti \
     -Dspi \
+    -Dadc \
+    -Ddma \
     -Dinc="./src" \
     -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/gd32e23x_tool.c;./src/ringq.c;./src/tool.c;" \
     -Dmacro="DEBUG;" \

@@ -28,6 +28,12 @@ void tool_delay_ms(uint32_t ms) {
     }
 }
 
+void tool_io_putword(const uint16_t word) {
+    const uint8_t* p = (uint8_t*)&word;
+    __impl_tool_io_putbyte(p[1]);
+    __impl_tool_io_putbyte(p[0]);
+}
+
 /// Only transmite the part of cstr, whose length less than tool_STRLEN_MAX
 int tool_io_puts(const char* cstr) {
     int len = 0;
