@@ -38,3 +38,6 @@ dump name=default_name:
 flash name=default_name:
     pyocd list
     pyocd flash --target gd32e230k8 ./zig-out/bin/{{name}}.bin
+
+reset:
+    pyocd reset --target=gd32e230k8

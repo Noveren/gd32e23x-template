@@ -70,6 +70,7 @@ void TIMER5_IRQHandler(void) {
     if (timer_interrupt_flag_get(TIMER5, TIMER_INT_FLAG_UP)) {
         timer_interrupt_flag_clear(TIMER5, TIMER_INT_FLAG_UP);
         if (!__impl_tool_timer_timer5_callbackfn(NULL)) {
+            tool_io_log_warn("TIMER TASK FAILED");
             __impl_tool_timer_disable();
         };
     }

@@ -272,6 +272,7 @@ static void app_task_get_adc_once(void) {
 }
 
 static bool tool_timer_callbackfn(void* _) {
+    tool_io_log_debug("TIME");
     return tool_adc_convert_once_async();
 }
 

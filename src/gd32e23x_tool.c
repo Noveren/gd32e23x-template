@@ -244,7 +244,7 @@ void __impl_tool_adc_init(const uint8_t tool_adc_CHANNEL) {
     adc_special_function_config(ADC_CONTINUOUS_MODE, DISABLE);
     adc_special_function_config(ADC_SCAN_MODE, ENABLE);
     uint8_t RSQ_idx = 0;
-#define ADC_SAMPLETIME ADC_SAMPLETIME_55POINT5
+#define ADC_SAMPLETIME ADC_SAMPLETIME_13POINT5
     if (tool_adc_CHANNEL == 0x00) {
         adc_regular_channel_config(RSQ_idx++, ADC_CHANNEL_0, ADC_SAMPLETIME);
 
