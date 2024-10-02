@@ -227,7 +227,7 @@ uint8_t __impl_tool_spi_access_data(uint8_t byte) {
     return (uint8_t)SPI_DATA(SPI0);
 }
 
-static uint16_t __impl_tool_adc_BUF[4] = { 0 };
+static volatile uint16_t __impl_tool_adc_BUF[4] = { 0xAAAA, 0xBBBB, 0xCCCC, 0xDDDD };
 void __impl_tool_adc_init(const uint8_t tool_adc_CHANNEL) {
     rcu_periph_clock_enable(RCU_ADC);
 
@@ -299,6 +299,9 @@ void __impl_tool_adc_init(const uint8_t tool_adc_CHANNEL) {
     adc_calibration_enable();
     adc_dma_mode_enable();
     adc_flag_clear(ADC_FLAG_STRC);
+
+    adc_flag_clear(ADC_FLAG_STRC);
+    dma_flag_clear(DMA_CH0, DMA_FLAG_FTF);
 }
 
 void __impl_tool_adc_deinit(void) {
@@ -322,7 +325,7 @@ bool __impl_tool_adc_convert_once_async(void) {
     return true;
 }
 
-const uint16_t* __impl_tool_adc_get_result(void) {
+const volatile uint16_t* __impl_tool_adc_get_result(void) {
     /// dma_flag_get(DMA_CH0, DMA_FLAG_FTF) == SET
     if (RESET != (DMA_INTF & DMA_FLAG_ADD(DMA_FLAG_FTF, DMA_CH0))) {
         /// adc_flag_clear(ADC_FLAG_STRC);

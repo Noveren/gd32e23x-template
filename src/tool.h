@@ -181,8 +181,8 @@ inline void tool_adc_init(const uint8_t tool_adc_CHANNEL) { __impl_tool_adc_init
 NEED_IMPL bool __impl_tool_adc_convert_once_async(void);
 inline bool tool_adc_convert_once_async(void) { return __impl_tool_adc_convert_once_async(); }
 
-NEED_IMPL const uint16_t* __impl_tool_adc_get_result(void);
-inline const uint16_t* tool_adc_get_result(void) { return __impl_tool_adc_get_result(); }
+NEED_IMPL const volatile uint16_t* __impl_tool_adc_get_result(void);
+inline const volatile uint16_t* tool_adc_get_result(void) { return __impl_tool_adc_get_result(); }
 
 /// ===============================================================
 

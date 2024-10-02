@@ -322,7 +322,7 @@ static void app_task_collect_signal(void) {
 
         tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
 
-        const uint16_t* result = NULL;
+        const volatile uint16_t* result = NULL; /// volatile 防止编译器优化
         uint16_t result_buf[4] = { 0 };
         uint16_t counter = 0;
         tool_timer_init(tool_timer_freq_10us);
