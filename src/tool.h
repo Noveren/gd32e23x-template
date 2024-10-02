@@ -24,6 +24,7 @@ uint16_t tool_utils_byte2ascii(uint8_t byte);
 
 #define NEED_IMPL extern
 
+NEED_IMPL void __impl_tool_led_init(void);
 NEED_IMPL void __impl_tool_delay_init(void);
 NEED_IMPL void __impl_tool_io_init(void);
 
@@ -50,17 +51,25 @@ NEED_IMPL void __impl_tool_timer_deinit(void);
 ///
 /// + `tool_deepsleep`: 直接使用
 inline void tool_init(void) {
+    __impl_tool_led_init();
     __impl_tool_delay_init();
     __impl_tool_io_init();
 }
 
 /// ===============================================================
 
+NEED_IMPL void __impl_tool_led_on(void);
+#define tool_led_on() do { __impl_tool_led_on(); } while (0)
+NEED_IMPL void __impl_tool_led_off(void);
+#define tool_led_off() do { __impl_tool_led_off(); } while (0)
+NEED_IMPL void __impl_tool_led_toggle(void);
+#define tool_led_toggle() do { __impl_tool_led_toggle(); } while (0)
+
+/// ===============================================================
+
 /// 微秒阻塞延时实现
 NEED_IMPL void __impl_tool_delay_us(uint32_t us);
-/// TODO
 inline void tool_delay_us(uint32_t us) { __impl_tool_delay_us(us); }
-/// TODO
 void tool_delay_ms(uint32_t ms);
 
 /// ===============================================================

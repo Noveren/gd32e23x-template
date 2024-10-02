@@ -5,6 +5,22 @@
 static RingQ __impl_tool_io_getchar_ringq;
 static uint8_t __impl_tool_io_getchar_ringq_space[__impl_tool_io_getchar_RINGQ_SIZE];
 
+void __impl_tool_led_init(void) {
+    /* pa15 init */
+    rcu_periph_clock_enable(RCU_GPIOA);
+    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO_PIN_15);
+    gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_2MHZ, GPIO_PIN_15);
+    gpio_bit_set(GPIOA, GPIO_PIN_15);
+}
+
+/// TODO 考虑是否可以在 gd32e23x_tool.h 中添加宏函数实现功能
+void __impl_tool_led_on(void)     { GPIO_BC(GPIOA)  = (uint32_t)(GPIO_PIN_15); }
+void __impl_tool_led_off(void)    { GPIO_BOP(GPIOA) = (uint32_t)(GPIO_PIN_15); }
+void __impl_tool_led_toggle(void) { GPIO_TG(GPIOA)  = (uint32_t)(GPIO_PIN_15); }
+// #define app_led_on()     do { GPIO_BC(GPIOA)  = (uint32_t)(GPIO_PIN_15); } while (0)
+// #define app_led_off()    do { GPIO_BOP(GPIOA) = (uint32_t)(GPIO_PIN_15); } while (0)
+// #define app_led_toggle() do { GPIO_TG(GPIOA)  = (uint32_t)(GPIO_PIN_15); } while (0)
+
 void __impl_tool_delay_init(void) {
     /* systick init */
     systick_clksource_set(SYSTICK_CLKSOURCE_HCLK);

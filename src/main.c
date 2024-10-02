@@ -1,26 +1,7 @@
 
-// TODO 协议帧头
 // TODO 在 FLASH 中保存程序装定信息（可读写）
-// TODO FRAM 访问
-// TODO ADC 采集
-// TODO 基于串口的任务选择执行框架
 
 #include "main.h"
-
-static void app_init(void) {
-    /* pa15 init */
-    rcu_periph_clock_enable(RCU_GPIOA);
-    gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO_PIN_15);
-    gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_2MHZ, GPIO_PIN_15);
-    gpio_bit_set(GPIOA, GPIO_PIN_15);
-
-    tool_init();
-    tool_io_enable();
-}
-
-#define app_led_on()     do { GPIO_BC(GPIOA)  = (uint32_t)(GPIO_PIN_15); } while (0)
-#define app_led_off()    do { GPIO_BOP(GPIOA) = (uint32_t)(GPIO_PIN_15); } while (0)
-#define app_led_toggle() do { GPIO_TG(GPIOA)  = (uint32_t)(GPIO_PIN_15); } while (0)
 
 static const char* app_get_input_within_x_mins(char* buf, const uint16_t capacity, const uint32_t min);
 static int app_strcmp(const char* str1, const char* str2);
@@ -75,10 +56,11 @@ static int8_t app_parse_command(const char* input) {
 
 #define APP_INPUT_BUF_SIZE 128
 void main() {
-    app_init();
+    tool_init();
+    tool_io_enable();
 
     tool_delay_ms(2000);
-    app_led_on();
+    tool_led_on();
 
     char input_buf[APP_INPUT_BUF_SIZE] = { 0 };
     const char* input = NULL;
@@ -94,9 +76,10 @@ void main() {
         // TODO 时间不够精准 0:30->0:36, 1:30->1:36, 0:10->0:11
         tool_deepsleep_with_rtc(0x0, 0x01, 0x0);
         tool_io_log_debug("RTC alarm");
+        tool_led_off();
         while (1) {
             tool_delay_ms(1000);
-            app_led_toggle();
+            tool_led_toggle();
         }
     } else {
         int8_t cmd_idx = -1;
