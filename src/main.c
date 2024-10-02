@@ -257,7 +257,7 @@ static void app_task_get_adc_once(void) {
     // tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_2);
 
     if (tool_adc_convert_once_async()) {
-        const uint16_t* result = NULL;
+        const volatile uint16_t* result = NULL;
         for (;;) {
             if ((result = tool_adc_get_result()) != NULL) {
                 tool_io_putframe_text_bytes((const uint8_t *)result, 8);
@@ -281,7 +281,7 @@ static void app_task_set_adc_timer_start(void) {
 
     tool_timer_init(tool_timer_freq_100us);
     tool_timer_enable(10000, tool_timer_callbackfn);
-    const uint16_t* result = NULL;
+    const volatile uint16_t* result = NULL;
     for (;;) {
         if (!tool_io_getchar_is_empty()) {
             break;

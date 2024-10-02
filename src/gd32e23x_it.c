@@ -69,6 +69,7 @@ extern CallbackFn __impl_tool_timer_timer5_callbackfn;
 void TIMER5_IRQHandler(void) {
     if (timer_interrupt_flag_get(TIMER5, TIMER_INT_FLAG_UP)) {
         timer_interrupt_flag_clear(TIMER5, TIMER_INT_FLAG_UP);
+        /// FIXME 如何防止回调函数执行时间过长
         if (!__impl_tool_timer_timer5_callbackfn(NULL)) {
             tool_io_log_warn("TIMER TASK FAILED");
             __impl_tool_timer_disable();
