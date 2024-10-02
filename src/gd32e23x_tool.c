@@ -306,33 +306,27 @@ bool __impl_tool_adc_convert_once_async(void) {
     return true;
 }
 
-bool __impl_tool_adc_convert_ok_and_clear(void) {
+const uint16_t* __impl_tool_adc_get_result(void) {
     /// dma_flag_get(DMA_CH0, DMA_FLAG_FTF) == SET
     if (RESET != (DMA_INTF & DMA_FLAG_ADD(DMA_FLAG_FTF, DMA_CH0))) {
         /// adc_flag_clear(ADC_FLAG_STRC);
         ADC_STAT &= ~((uint32_t)ADC_FLAG_STRC);
         /// dma_flag_clear(DMA_CH0, DMA_FLAG_FTF);
         DMA_INTC |= DMA_FLAG_ADD(DMA_FLAG_FTF, DMA_CH0);
-        return true;
+        return __impl_tool_adc_BUF;
+    } else {
+        return NULL;
     }
-    return false;
 }
 
-/// FIXME NULL
-const uint16_t* __impl_tool_adc_get_result(void) {
-    return __impl_tool_adc_BUF;
-}
-
-void __impl_tool_timer_init(void) {
+void __impl_tool_timer_init(uint32_t freq) {
     uint32_t ck_timer_clock =rcu_clock_freq_get(CK_APB2);
     if (GET_BITS(RCU_CFG0, 11, 13) >= 0b100) {
         ck_timer_clock <<= 1;
     }
-
     rcu_periph_clock_enable(RCU_TIMER5);
     timer_deinit(TIMER5);
-    /// 100us
-    timer_prescaler_config(TIMER5, ((uint16_t)(ck_timer_clock / 10000)) - 1, TIMER_PSC_RELOAD_NOW);
+    timer_prescaler_config(TIMER5, ((uint16_t)(ck_timer_clock / freq)) - 1, TIMER_PSC_RELOAD_NOW);
     nvic_irq_enable(TIMER5_IRQn, 3);
 }
 
@@ -342,14 +336,14 @@ void __impl_tool_timer_deinit(void) {
 }
 
 CallbackFn __impl_tool_timer_timer5_callbackfn = NULL;
-bool __impl_tool_timer_enable(uint16_t us100, CallbackFn fn) {
+bool __impl_tool_timer_enable(uint16_t autoreload, CallbackFn fn) {
     if (__impl_tool_timer_timer5_callbackfn != NULL) {
         return false;
     }
     timer_interrupt_enable(TIMER5, TIMER_INT_UP);
     timer_enable(TIMER5);
     __impl_tool_timer_timer5_callbackfn = fn;
-    timer_autoreload_value_config(TIMER5, us100 == 0 ? 0 : us100 - 1);
+    timer_autoreload_value_config(TIMER5, autoreload == 0 ? 0 : autoreload - 1);
     return true;
 }
 

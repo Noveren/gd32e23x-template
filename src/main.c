@@ -268,13 +268,17 @@ static void app_task_set_fram_clean(void) {
 static void app_task_get_adc_once(void) {
     tool_io_log_info("Execute `app_task_get_adc_once`.");
 
-    // tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
-    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_2);
+    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
+    // tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_2);
 
     if (tool_adc_convert_once_async()) {
-        while (!tool_adc_convert_ok_and_clear());
-        const uint8_t* result = (const uint8_t *)tool_adc_get_result();
-        tool_io_putframe_text_bytes(result, 8);
+        const uint16_t* result = NULL;
+        for (;;) {
+            if ((result = tool_adc_get_result()) != NULL) {
+                tool_io_putframe_text_bytes((const uint8_t *)result, 8);
+                break;
+            }
+        }
     } else {
         tool_io_log_error("Failed to start a conversion.");
     }
@@ -290,20 +294,19 @@ static void app_task_set_adc_timer_start(void) {
 
     tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
 
-    tool_timer_init();
+    tool_timer_init(tool_timer_freq_100us);
     tool_timer_enable(10000, app_task_set_adc_timer_start_timer_callbackfn);
-    const uint8_t* result = (const uint8_t *)tool_adc_get_result();
+    const uint16_t* result = NULL;
     for (;;) {
         if (!tool_io_getchar_is_empty()) {
             break;
         }
-        if (tool_adc_convert_ok_and_clear()) {
-            /// FIXME 数据冲突
-            tool_io_putframe_text_bytes(result, 8);
+        if ((result = tool_adc_get_result()) != NULL) {
+            tool_io_putframe_text_bytes((const uint8_t *)result, 8);
         }
     }
     tool_timer_disable();
     tool_timer_deinit();
-    
+
     tool_adc_deinit();
 }

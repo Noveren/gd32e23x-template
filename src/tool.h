@@ -39,7 +39,10 @@ NEED_IMPL void __impl_tool_spi_deinit(void);
 NEED_IMPL void __impl_tool_adc_init(const uint8_t tool_adc_CHANNEL);
 NEED_IMPL void __impl_tool_adc_deinit(void);
 
-NEED_IMPL void __impl_tool_timer_init(void);
+/// ck / (ck / step)
+#define tool_timer_freq_100us 10000
+#define tool_timer_freq_10us  100000
+NEED_IMPL void __impl_tool_timer_init(uint32_t freq);
 NEED_IMPL void __impl_tool_timer_deinit(void);
 
 /// 初始化 `tool_delay` 和 `tool_io` 并保持全局可用
@@ -169,19 +172,16 @@ inline void tool_adc_init(const uint8_t tool_adc_CHANNEL) { __impl_tool_adc_init
 NEED_IMPL bool __impl_tool_adc_convert_once_async(void);
 inline bool tool_adc_convert_once_async(void) { return __impl_tool_adc_convert_once_async(); }
 
-NEED_IMPL bool __impl_tool_adc_convert_ok_and_clear(void);
-inline bool tool_adc_convert_ok_and_clear(void) { return __impl_tool_adc_convert_ok_and_clear(); }
-
 NEED_IMPL const uint16_t* __impl_tool_adc_get_result(void);
 inline const uint16_t* tool_adc_get_result(void) { return __impl_tool_adc_get_result(); }
 
 /// ===============================================================
 
-#define tool_timer_init() do { __impl_tool_timer_init(); } while (0)
+inline void tool_timer_init(uint32_t freq) { __impl_tool_timer_init(freq); }
 #define tool_timer_deinit() do { __impl_tool_timer_deinit(); } while (0)
 
-NEED_IMPL bool __impl_tool_timer_enable(uint16_t us100, CallbackFn fn);
-inline bool tool_timer_enable(uint16_t us100, CallbackFn fn) { return __impl_tool_timer_enable(us100, fn); }
+NEED_IMPL bool __impl_tool_timer_enable(uint16_t autoreload, CallbackFn fn);
+inline bool tool_timer_enable(uint16_t autoreload, CallbackFn fn) { return __impl_tool_timer_enable(autoreload, fn); }
 NEED_IMPL void __impl_tool_timer_disable(void);
 #define tool_timer_disable() do { __impl_tool_timer_disable(); } while (0)
 NEED_IMPL bool __impl_tool_timer_is_working(void);
