@@ -176,8 +176,7 @@ static void app_task_get_fram_data(void) {
     tool_spi_access_data(0x00);
     tool_spi_access_data(0x00);
     uint8_t byte = 0;
-    // for (uint32_t i = 0; i < app_FRAM_CAPACITY; i++) {
-    for (uint32_t i = 0; i < 100; i++) {
+    for (uint32_t i = 0; i < app_FRAM_CAPACITY; i++) {
         byte = tool_spi_access_data(app_FRAM_OPCODE_NOP);
         tool_io_putbyte(byte);
     }
@@ -272,7 +271,6 @@ static void app_task_get_adc_once(void) {
 }
 
 static bool tool_timer_callbackfn(void* _) {
-    tool_io_log_debug("TIME");
     return tool_adc_convert_once_async();
 }
 
@@ -330,6 +328,10 @@ static void app_task_collect_signal(void) {
         tool_timer_init(tool_timer_freq_10us);
         tool_timer_enable(1, tool_timer_callbackfn);
         for (;;) {
+            if (!tool_io_getchar_is_empty()) {
+                break;
+            }
+
             if (counter >= 8192 || !tool_timer_is_working()) {
                 break;
             }

@@ -190,7 +190,7 @@ void __impl_tool_spi_init(void) {
         .nss                  = SPI_NSS_SOFT,
         .endian               = SPI_ENDIAN_MSB,
         .clock_polarity_phase = SPI_CK_PL_LOW_PH_1EDGE,
-        .prescale             = SPI_PSC_4,
+        .prescale             = SPI_PSC_2,
     };
     spi_init(SPI0, &spi0_init);
     spi_nss_output_enable(SPI0);
@@ -359,7 +359,7 @@ bool __impl_tool_timer_enable(uint16_t autoreload, CallbackFn fn) {
     timer_interrupt_enable(TIMER5, TIMER_INT_UP);
     timer_enable(TIMER5);
     __impl_tool_timer_timer5_callbackfn = fn;
-    timer_autoreload_value_config(TIMER5, autoreload == 0 ? 0 : autoreload - 1);
+    timer_autoreload_value_config(TIMER5, autoreload == 0 ? 1 : autoreload);
     return true;
 }
 
