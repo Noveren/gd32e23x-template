@@ -88,6 +88,10 @@ pub fn build(b: *std.Build) !void {
         elf.defineCMacro("GD32E23X_USE_EXTI", null);
         elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_exti.c") });
     }
+    if (b.option(bool, "timer", "Use peripheral timer. (default 'false')") orelse false) {
+        elf.defineCMacro("GD32E23X_USE_TIMER", null);
+        elf.addCSourceFile(.{ .file = b.path("./gd32e23x/std/src/gd32e23x_timer.c") });
+    }
     
     const option_include_dirs = b.option([]const u8, "inc", "The relative path to include dir for the program. (example './src;./src/lib' or './src;./src/lib;')");
     if (option_include_dirs) |include_dirs| {

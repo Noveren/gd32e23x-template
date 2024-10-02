@@ -14,6 +14,7 @@ build name=default_name:
     -Dspi \
     -Dadc \
     -Ddma \
+    -Dtimer \
     -Dinc="./src" \
     -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/gd32e23x_tool.c;./src/ringq.c;./src/tool.c;" \
     -Dmacro="DEBUG;" \

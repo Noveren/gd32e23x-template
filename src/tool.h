@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+typedef bool (*CallbackFn)(void *);
+
 /// 当字符串长度超过最大值时，相关函数行为异常
 #define tool_STRLEN_MAX 256
 
@@ -36,6 +38,9 @@ NEED_IMPL void __impl_tool_spi_deinit(void);
 
 NEED_IMPL void __impl_tool_adc_init(const uint8_t tool_adc_CHANNEL);
 NEED_IMPL void __impl_tool_adc_deinit(void);
+
+NEED_IMPL void __impl_tool_timer_init(void);
+NEED_IMPL void __impl_tool_timer_deinit(void);
 
 /// 初始化 `tool_delay` 和 `tool_io` 并保持全局可用
 /// 其他功能可直接使用或需要单独初始化：
@@ -73,6 +78,8 @@ void tool_io_putbytes_reverse(const uint8_t bytes[], uint32_t len);
 void tool_io_putbytes_text(const uint8_t bytes[], uint32_t len, char prefix);
 void tool_io_putbytes_reverse_text(const uint8_t bytes[], uint32_t len, char prefix);
 
+NEED_IMPL bool __impl_tool_io_getchar_is_empty(void);
+inline bool tool_io_getchar_is_empty(void) { return __impl_tool_io_getchar_is_empty(); }
 
 /// 立刻获得一个字节数据，若无数据，则返回值小于 0
 NEED_IMPL int __impl_tool_io_getchar_now(void);
@@ -167,6 +174,18 @@ inline bool tool_adc_convert_ok_and_clear(void) { return __impl_tool_adc_convert
 
 NEED_IMPL const uint16_t* __impl_tool_adc_get_result(void);
 inline const uint16_t* tool_adc_get_result(void) { return __impl_tool_adc_get_result(); }
+
+/// ===============================================================
+
+#define tool_timer_init() do { __impl_tool_timer_init(); } while (0)
+#define tool_timer_deinit() do { __impl_tool_timer_deinit(); } while (0)
+
+NEED_IMPL bool __impl_tool_timer_enable(uint16_t us100, CallbackFn fn);
+inline bool tool_timer_enable(uint16_t us100, CallbackFn fn) { return __impl_tool_timer_enable(us100, fn); }
+NEED_IMPL void __impl_tool_timer_disable(void);
+#define tool_timer_disable() do { __impl_tool_timer_disable(); } while (0)
+NEED_IMPL bool __impl_tool_timer_is_working(void);
+inline bool tool_timer_is_working(void) { return __impl_tool_timer_is_working(); }
 
 #undef NEED_IMPL
 #endif

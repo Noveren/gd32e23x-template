@@ -83,6 +83,13 @@ int __impl_tool_io_getchar_ringq_push(const uint8_t byte) {
     return ringq_push(&__impl_tool_io_getchar_ringq, byte);
 }
 
+bool __impl_tool_io_getchar_is_empty(void) {
+    usart_interrupt_disable(USART0, USART_INT_RBNE);
+    bool ret = ringq_is_empty(&__impl_tool_io_getchar_ringq);
+    usart_interrupt_enable(USART0, USART_INT_RBNE);
+    return ret;
+}
+
 int __impl_tool_io_getchar_now(void) {
     usart_interrupt_disable(USART0, USART_INT_RBNE);
     int ret = ringq_poll(&__impl_tool_io_getchar_ringq);
@@ -311,6 +318,47 @@ bool __impl_tool_adc_convert_ok_and_clear(void) {
     return false;
 }
 
+/// FIXME NULL
 const uint16_t* __impl_tool_adc_get_result(void) {
     return __impl_tool_adc_BUF;
+}
+
+void __impl_tool_timer_init(void) {
+    uint32_t ck_timer_clock =rcu_clock_freq_get(CK_APB2);
+    if (GET_BITS(RCU_CFG0, 11, 13) >= 0b100) {
+        ck_timer_clock <<= 1;
+    }
+
+    rcu_periph_clock_enable(RCU_TIMER5);
+    timer_deinit(TIMER5);
+    /// 100us
+    timer_prescaler_config(TIMER5, ((uint16_t)(ck_timer_clock / 10000)) - 1, TIMER_PSC_RELOAD_NOW);
+    nvic_irq_enable(TIMER5_IRQn, 3);
+}
+
+void __impl_tool_timer_deinit(void) {
+    nvic_irq_disable(TIMER5_IRQn);
+    rcu_periph_clock_disable(RCU_TIMER5);
+}
+
+CallbackFn __impl_tool_timer_timer5_callbackfn = NULL;
+bool __impl_tool_timer_enable(uint16_t us100, CallbackFn fn) {
+    if (__impl_tool_timer_timer5_callbackfn != NULL) {
+        return false;
+    }
+    timer_interrupt_enable(TIMER5, TIMER_INT_UP);
+    timer_enable(TIMER5);
+    __impl_tool_timer_timer5_callbackfn = fn;
+    timer_autoreload_value_config(TIMER5, us100 == 0 ? 0 : us100 - 1);
+    return true;
+}
+
+void __impl_tool_timer_disable(void) {
+    __impl_tool_timer_timer5_callbackfn = NULL;
+    timer_disable(TIMER5);
+    timer_interrupt_disable(TIMER5, TIMER_INT_UP);
+}
+
+bool __impl_tool_timer_is_working(void) {
+    return __impl_tool_timer_timer5_callbackfn != NULL;
 }

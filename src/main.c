@@ -33,6 +33,7 @@ static void app_task_get_fram_data(void);
 static void app_task_set_fram_write_enable(void);
 static void app_task_set_fram_clean(void);
 static void app_task_get_adc_once(void);
+static void app_task_set_adc_timer_start(void);
 
 // static void app_task_collect_signal(void);
 // static void app_task_collect_signal_with_triger(void);
@@ -50,6 +51,8 @@ static app_TaskFn app_TASK_TABLE[] = {
     app_task_set_fram_clean,
     ///
     app_task_get_adc_once,
+    ///
+    app_task_set_adc_timer_start,
 };
 
 static int8_t app_parse_command(const char* input) {
@@ -65,6 +68,8 @@ static int8_t app_parse_command(const char* input) {
         return 4;
     if (0 == app_strcmp(input, "<!get_adc_once>"))
         return 5;
+    if (0 == app_strcmp(input, "<!app_task_set_adc_timer_start>"))
+        return 6;
     return -1;
 }
 
@@ -111,7 +116,7 @@ void main() {
 
 /// Wait for input (no more than `capacity-1`) within x mins,
 /// otherwise the return value will be `NULL`.
-static  const char* app_get_input_within_x_mins(char* buf, const uint16_t capacity, const uint32_t min) {
+static const char* app_get_input_within_x_mins(char* buf, const uint16_t capacity, const uint32_t min) {
     uint16_t len = 0;
     const char* input = NULL;
     for (uint32_t n100ms = min * 600; n100ms > 0; n100ms--) {
@@ -263,7 +268,8 @@ static void app_task_set_fram_clean(void) {
 static void app_task_get_adc_once(void) {
     tool_io_log_info("Execute `app_task_get_adc_once`.");
 
-    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_0 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
+    // tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
+    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_2);
 
     if (tool_adc_convert_once_async()) {
         while (!tool_adc_convert_ok_and_clear());
@@ -272,5 +278,32 @@ static void app_task_get_adc_once(void) {
     } else {
         tool_io_log_error("Failed to start a conversion.");
     }
+    tool_adc_deinit();
+}
+
+static bool app_task_set_adc_timer_start_timer_callbackfn(void* _) {
+    return tool_adc_convert_once_async();
+}
+
+static void app_task_set_adc_timer_start(void) {
+    tool_io_log_info("Execute `app_task_set_adc_timer_start`.");
+
+    tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
+
+    tool_timer_init();
+    tool_timer_enable(10000, app_task_set_adc_timer_start_timer_callbackfn);
+    const uint8_t* result = (const uint8_t *)tool_adc_get_result();
+    for (;;) {
+        if (!tool_io_getchar_is_empty()) {
+            break;
+        }
+        if (tool_adc_convert_ok_and_clear()) {
+            /// FIXME 数据冲突
+            tool_io_putframe_text_bytes(result, 8);
+        }
+    }
+    tool_timer_disable();
+    tool_timer_deinit();
+    
     tool_adc_deinit();
 }
