@@ -15,9 +15,7 @@ static void app_task_set_fram_write_enable(void);
 static void app_task_set_fram_clean(void);
 static void app_task_get_adc_once(void);
 static void app_task_set_adc_timer_start(void);
-
-// static void app_task_collect_signal(void);
-// static void app_task_collect_signal_with_triger(void);
+static void app_task_collect_signal(void);
 
 static app_TaskFn app_TASK_TABLE[] = {
     ///
@@ -34,6 +32,8 @@ static app_TaskFn app_TASK_TABLE[] = {
     app_task_get_adc_once,
     ///
     app_task_set_adc_timer_start,
+    ///
+    app_task_collect_signal,
 };
 
 static int8_t app_parse_command(const char* input) {
@@ -49,8 +49,10 @@ static int8_t app_parse_command(const char* input) {
         return 4;
     if (0 == app_strcmp(input, "<!get_adc_once>"))
         return 5;
-    if (0 == app_strcmp(input, "<!app_task_set_adc_timer_start>"))
+    if (0 == app_strcmp(input, "<!set_adc_timer_start>"))
         return 6;
+    if (0 == app_strcmp(input, "<!collect_signal>"))
+        return 7;
     return -1;
 }
 
@@ -174,7 +176,8 @@ static void app_task_get_fram_data(void) {
     tool_spi_access_data(0x00);
     tool_spi_access_data(0x00);
     uint8_t byte = 0;
-    for (uint32_t i = 0; i < app_FRAM_CAPACITY; i++) {
+    // for (uint32_t i = 0; i < app_FRAM_CAPACITY; i++) {
+    for (uint32_t i = 0; i < 100; i++) {
         byte = tool_spi_access_data(app_FRAM_OPCODE_NOP);
         tool_io_putbyte(byte);
     }
@@ -268,7 +271,7 @@ static void app_task_get_adc_once(void) {
     tool_adc_deinit();
 }
 
-static bool app_task_set_adc_timer_start_timer_callbackfn(void* _) {
+static bool tool_timer_callbackfn(void* _) {
     return tool_adc_convert_once_async();
 }
 
@@ -278,7 +281,7 @@ static void app_task_set_adc_timer_start(void) {
     tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
 
     tool_timer_init(tool_timer_freq_100us);
-    tool_timer_enable(10000, app_task_set_adc_timer_start_timer_callbackfn);
+    tool_timer_enable(10000, tool_timer_callbackfn);
     const uint16_t* result = NULL;
     for (;;) {
         if (!tool_io_getchar_is_empty()) {
@@ -292,4 +295,67 @@ static void app_task_set_adc_timer_start(void) {
     tool_timer_deinit();
 
     tool_adc_deinit();
+}
+
+static void app_task_collect_signal(void) {
+    tool_io_log_info("Execute `app_task_collect_signal`.");
+
+    tool_spi_init();
+
+    uint8_t reg = 0;
+    tool_spi_enable();
+    tool_spi_select();
+    tool_spi_access_data(app_FRAM_OPCODE_RDSR);
+    reg = tool_spi_access_data(app_FRAM_OPCODE_NOP);
+    tool_spi_release();
+    tool_spi_disable();
+    if ((reg & 0x02) == 0) {
+        tool_io_putframe_header_text(1);
+        tool_io_putbyte('1');
+        tool_io_putframe_footer();
+    } else {
+        tool_spi_enable();
+        tool_spi_select();
+        tool_spi_access_data(app_FRAM_OPCODE_WRITE);
+        tool_spi_access_data(0x00);
+        tool_spi_access_data(0x00);
+
+
+        tool_adc_init(tool_adc_CHANNEL_0 | tool_adc_CHANNEL_1 | tool_adc_CHANNEL_2 | tool_adc_CHANNEL_3);
+
+        const uint16_t* result = NULL;
+        uint16_t result_buf[4] = { 0 };
+        uint16_t counter = 0;
+        tool_timer_init(tool_timer_freq_10us);
+        tool_timer_enable(1, tool_timer_callbackfn);
+        for (;;) {
+            if (counter >= 8192 || !tool_timer_is_working()) {
+                break;
+            }
+            if ((result = tool_adc_get_result()) != NULL) {
+                counter += 1;
+                /// 缓存结果
+                result_buf[0] = result[0];
+                result_buf[1] = result[1];
+                result_buf[2] = result[2];
+                result_buf[3] = result[3];
+                /// 存入 FRAM
+                for (uint8_t i = 0; i < 8; i++) {
+                    tool_spi_access_data(((const uint8_t*)result_buf)[i]);
+                }
+            }
+        }
+        tool_timer_disable();
+        tool_timer_deinit();
+
+        tool_spi_release();
+        tool_spi_disable();
+
+        tool_adc_deinit();
+
+        tool_io_putframe_header_text(1);
+        tool_io_putbyte('0');
+        tool_io_putframe_footer();
+    }
+    tool_spi_deinit();
 }
