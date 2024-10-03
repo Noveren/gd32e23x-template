@@ -76,5 +76,6 @@ bool app_cmd_set_fram_clean(void);
 bool app_cmd_get_adc_once(void);
 bool app_cmd_set_adc_timer_start(void);
 bool app_cmd_collect_signal(void);
+bool app_cmd_collect_signal_with_triger(void);
 
 #endif

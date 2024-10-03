@@ -196,7 +196,7 @@ bool app_cmd_set_adc_timer_start(void) {
 
 bool app_cmd_collect_signal(void) {
     app_log_debug("Execute `app_cmd_collect_signal`.");
-    bool ret = false;
+    bool ret = true;
 
     dvr_spi_init();
 
@@ -224,22 +224,24 @@ bool app_cmd_collect_signal(void) {
         dvr_timer_init(dvr_timer_FREQ_10US);
         dvr_timer_enable(1, app_timer_callbackfn);
         for (;;) {
-            // if (app_gets_or_NULL() != NULL) {
-            //     break;
-            // }
-            if (counter >= 8192 || !dvr_timer_is_working()) {
+            if (!dvr_timer_is_working()) {
+                ret = false;
                 break;
-            }
-            if ((result = dvr_adc_get_result()) != NULL) {
-                counter += 1;
-                /// 缓存结果
-                result_buf[0] = result[0];
-                result_buf[1] = result[1];
-                result_buf[2] = result[2];
-                result_buf[3] = result[3];
-                /// 存入 FRAM
-                for (uint8_t i = 0; i < 8; i++) {
-                    dvr_spi_access_data(((const uint8_t*)result_buf)[i]);
+            } else {
+                if (counter >= (8192)) {    /// 65536byte 共能够存储 8192 组 4 通道 (每通道 2byte) 数据
+                    break;
+                }
+                if ((result = dvr_adc_get_result()) != NULL) {
+                    counter += 1;
+                    /// 缓存结果
+                    result_buf[0] = result[0];
+                    result_buf[1] = result[1];
+                    result_buf[2] = result[2];
+                    result_buf[3] = result[3];
+                    /// 存入 FRAM
+                    for (uint8_t i = 0; i < 8; i++) {
+                        dvr_spi_access_data(((const uint8_t*)result_buf)[i]);
+                    }
                 }
             }
         }
@@ -250,11 +252,134 @@ bool app_cmd_collect_signal(void) {
         dvr_spi_disable();
 
         dvr_adc_deinit();
-        ret = true;
     }
     dvr_spi_deinit();
 
     return ret;
 }
 
+bool app_cmd_collect_signal_with_triger(void) {
+    app_log_debug("Execute `app_cmd_collect_signal_with_triger`.");
+    bool ret = true;
+    const volatile uint16_t* result = NULL; /// volatile 防止编译器优化
+    uint16_t counter = 0;
+    uint16_t result_buf[4] = { 0 };
+    uint16_t buf[1024] = { 0 }; /// 1024*2byte 共能够存储 256 组 4 通道 (每通道 2byte) 数据
 
+    dvr_spi_init();
+
+    uint8_t reg = 0;
+    dvr_spi_enable();
+    dvr_spi_select();
+    dvr_spi_access_data(app_FRAM_OPCODE_RDSR);
+    reg = dvr_spi_access_data(app_FRAM_OPCODE_NOP);
+    dvr_spi_release();
+    dvr_spi_disable();
+    if ((reg & 0x02) == 0) {
+        ret = false;
+    } else {
+        dvr_spi_enable();
+        dvr_spi_select();
+        dvr_spi_access_data(app_FRAM_OPCODE_WRITE);
+        dvr_spi_access_data(0x00);
+        dvr_spi_access_data(0x00);
+
+        app_led_on();
+        dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
+        dvr_timer_init(dvr_timer_FREQ_100US);
+        dvr_timer_enable(10, app_timer_callbackfn);
+        uint32_t mean = 0;
+        if (ret) {
+            #define MEAN_NUM_SHIFT 10 /// 1024
+            counter = 0;
+            result = NULL;
+            for (;;) {
+                if (!dvr_timer_is_working()) {
+                    app_log_debug("dvr timer is not working");
+                    ret = false;
+                    break;
+                } else {
+                    if (counter >= 1024) {
+                        ret = true;
+                        break;
+                    }
+                    if ((result = dvr_adc_get_result()) != NULL) {
+                        counter += 1;
+                        mean += result[0];
+                    }
+                }
+            }
+            mean = mean >> 10;
+            #undef MEAN_NUM_SHIFT
+        }
+        bool flag_triger = false;
+        uint16_t idx = 0;
+        if (ret) {
+            result = NULL;
+            for (;;) {
+                if (!dvr_timer_is_working()) {
+                    app_log_debug("dvr timer is not working");
+                    ret = false;
+                    break;
+                } else {
+                    if ((result = dvr_adc_get_result()) != NULL) {
+                        buf[idx+0] = result[0];
+                        buf[idx+1] = result[1];
+                        buf[idx+2] = result[2];
+                        buf[idx+3] = result[3];
+                        #define THRESHOLD 0x00FA    /// 0.2V
+                        if ((mean + THRESHOLD) < buf[idx+0] || mean > (buf[idx+0] + THRESHOLD)) {
+                            flag_triger = true;
+                            break;
+                        } else {
+                            idx = (idx >= 2048) ? 0 : idx+4;
+                        }
+                        #undef THRESHOLD
+                    }
+                }
+            }
+        }
+        app_led_off();
+        /// 采集触发后的信号，并填充触发前的信号
+        if (ret && flag_triger) {
+            counter = 0;
+            result = NULL;
+            for (;;) {
+                if (!dvr_timer_is_working()) {
+                    ret = false;
+                    break;
+                } else {
+                    if (counter >= (8192 - 512)) {    /// 65536byte 共能够存储 8192 组 4 通道 (每通道 2byte) 数据
+                        break;
+                    }
+                    if ((result = dvr_adc_get_result()) != NULL) {
+                        counter += 1;
+                        result_buf[0] = result[0] | 0x8000;
+                        result_buf[1] = result[1] | 0x8000;
+                        result_buf[2] = result[2] | 0x8000;
+                        result_buf[3] = result[3] | 0x8000;
+                        for (uint8_t i = 0; i < 8; i++) {
+                            dvr_spi_access_data(((const uint8_t*)result_buf)[i]);
+                        }
+                    }
+                }
+            }
+            dvr_timer_disable();
+
+            for (counter = 0; counter < 256; counter++) {
+                for (uint8_t i = 0; i < 8; i++) {
+                    dvr_spi_access_data(((const uint8_t*)buf)[counter * 8 + i]);
+                }
+            }
+        }
+        dvr_timer_disable();
+        dvr_timer_deinit();
+        dvr_adc_deinit();
+        dvr_spi_release();
+        dvr_spi_disable();
+    }
+
+    dvr_spi_deinit();
+
+    return ret;
+}

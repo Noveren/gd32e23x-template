@@ -18,6 +18,8 @@ static CommandFn COMMAND_FN_TABLE[] = {
     app_cmd_set_adc_timer_start,
     ///
     app_cmd_collect_signal,
+    ///
+    app_cmd_collect_signal_with_triger,
 };
 
 static int8_t parse_command(const char* input) {
@@ -37,6 +39,8 @@ static int8_t parse_command(const char* input) {
         return 6;
     if (0 == cstrcmp(input, "<!collect_signal>"))
         return 7;
+    if (0 == cstrcmp(input, "<!collect_signal_with_triger>"))
+        return 8;
     return -1;
 }
 

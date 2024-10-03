@@ -22,30 +22,9 @@ build name=default_name:
     -Dclangd=true \
     --summary all
 
-# build name=default_name:
-#     @zig build -Drelease \
-#     -Dname={{name}} \
-#     -Dld="./src/linker.ld" \
-#     -Dstartup="./src/startup.s" \
-#     -Dgpio \
-#     -Dusart \
-#     -Dpmu \
-#     -Drtc \
-#     -Dexti \
-#     -Dspi \
-#     -Dadc \
-#     -Ddma \
-#     -Dtimer \
-#     -Dinc="./src" \
-#     -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/gd32e23x_tool.c;./src/ringq.c;./src/tool.c;" \
-#     -Dmacro="DEBUG;" \
-#     -Dinfo=true \
-#     -Dclangd=true \
-#     --summary all
-
 size name=default_name:
     wc -c ./zig-out/bin/{{name}}.bin
-#    arm-none-eabi-size -A -x ./zig-out/bin/{{name}}
+    arm-none-eabi-size -A -x ./zig-out/bin/{{name}}
 #    hexyl ./zig-out/bin/{{name}}.bin -g 4
 
 dump name=default_name:
