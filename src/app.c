@@ -29,6 +29,11 @@ const char* app_gets(void) {
     return dvr_io_gets(app_input_buf, APP_INPUT_BUF_SIZE);
 }
 
+const char* app_gets_or_NULL(void) {
+    return dvr_io_gets_or_NULL(app_input_buf, APP_INPUT_BUF_SIZE);
+}
+
+
 const char* app_gets_within_x_sec_or_NULL(uint8_t sec) {
     return dvr_io_gets_within_x_sec_or_NULL(app_input_buf, APP_INPUT_BUF_SIZE, sec);
 }

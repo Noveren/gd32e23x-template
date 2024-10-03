@@ -16,7 +16,7 @@ build name=default_name:
     -Ddma \
     -Dtimer \
     -Dinc="./src;./src/util;./src/driver;" \
-    -Dsrc="./src/util/util.c;./src/driver/gd32e23x_it.c;./src/driver/driver_impl.c;./src/driver/driver.c;./src/app.c;./src/main.c;" \
+    -Dsrc="./src/util/util.c;./src/driver/gd32e23x_it.c;./src/driver/driver_impl.c;./src/driver/driver.c;./src/app.c;./src/app_cmd.c;./src/main.c;" \
     -Dmacro="DEBUG;" \
     -Dinfo=true \
     -Dclangd=true \
