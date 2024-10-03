@@ -15,12 +15,33 @@ build name=default_name:
     -Dadc \
     -Ddma \
     -Dtimer \
-    -Dinc="./src" \
-    -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/gd32e23x_tool.c;./src/ringq.c;./src/tool.c;" \
+    -Dinc="./src;./src/util;./src/driver;" \
+    -Dsrc="./src/util/util.c;./src/driver/gd32e23x_it.c;./src/driver/driver_impl.c;./src/driver/driver.c;./src/app.c;./src/main.c;" \
     -Dmacro="DEBUG;" \
     -Dinfo=true \
     -Dclangd=true \
     --summary all
+
+# build name=default_name:
+#     @zig build -Drelease \
+#     -Dname={{name}} \
+#     -Dld="./src/linker.ld" \
+#     -Dstartup="./src/startup.s" \
+#     -Dgpio \
+#     -Dusart \
+#     -Dpmu \
+#     -Drtc \
+#     -Dexti \
+#     -Dspi \
+#     -Dadc \
+#     -Ddma \
+#     -Dtimer \
+#     -Dinc="./src" \
+#     -Dsrc="./src/main.c;./src/gd32e23x_it.c;./src/gd32e23x_tool.c;./src/ringq.c;./src/tool.c;" \
+#     -Dmacro="DEBUG;" \
+#     -Dinfo=true \
+#     -Dclangd=true \
+#     --summary all
 
 size name=default_name:
     wc -c ./zig-out/bin/{{name}}.bin

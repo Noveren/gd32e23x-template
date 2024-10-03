@@ -1,3 +1,28 @@
+
+
+<img src="./assets/系统架构.svg" alt="系统架构" style="zoom:150%;" />
+
+```shell
+- gd32e23x\									# 标准外设库
+- src\
+  - util\									# 工具库
+    - util.h & utils.c
+  - driver\									# 驱动层
+    - gd32e23x_libopt.h
+    - gd32e23x_it.h & gd32e23x_it.c
+    - driver_impl.h & driver_impl.c     	# 设备相关实现
+    - driver.h								# 设备无关接口
+    - driver.c
+  # 业务层
+  - startup.s
+  - linker.ld
+  - main.c
+```
+
+
+
+
+
 ```shell
 - gd32e23x\									# 标准库
   - core\
@@ -22,17 +47,6 @@
 - README.md
 ```
 
-# 时钟树
-
-![image-20241001181202731](./assets/image-20241001181202731.png)
-
-**总线时钟**：时钟源选择；系统时钟 `CK_SYS`；总线时钟 `CK_AHB`、`CK_APB1`、`CK_APB2`
-
-+ **相关文件**：`system_gd32e23x.c` 与 `gd32e23x_libopt.h`
-+ **注意事项**：FLASH 访问延迟需要与系统时钟频率匹配
-
-**外设时钟**：在相关外设初始化函数中进行设置
-
 # 串口通信帧
 
 **串口参数**：8 数据位、无校验位、1 停止位；波特率 115200
@@ -46,5 +60,5 @@
 |        帧类型         |          数据域           | 适用 |
 | :-------------------: | :-----------------------: | :--: |
 | **控制帧** `!`/`0x21` | `Command ByteCount Byte+` | 下行 |
-| **文本帧** `"`/`0x22` |     `Uint32_t Byte+`      | 上行 |
+| **文本帧** `#`/`0x23` |     `Uint32_t Byte+`      | 上行 |
 | **数据帧 **`$`/`0x24` |     `Uint32_t Byte+`      | 上行 |
