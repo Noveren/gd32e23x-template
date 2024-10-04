@@ -49,14 +49,13 @@ void RTC_IRQHandler(void) {
     }
 }
 
-extern CallbackFn __impl_dvr_timer_timer5_callbackfn;   /// TODO 此处不能加 volatile
-extern void __impl_dvr_timer_disable(void);
+extern bool dvr_timer_callback(void* _);
 void TIMER5_IRQHandler(void) {
     if (timer_interrupt_flag_get(TIMER5, TIMER_INT_FLAG_UP)) {
         timer_interrupt_flag_clear(TIMER5, TIMER_INT_FLAG_UP);
         /// FIXME 如何防止回调函数执行时间过长
-        if (!__impl_dvr_timer_timer5_callbackfn(NULL)) {
-            __impl_dvr_timer_disable();
+        if (!dvr_timer_callback(NULL)) {
+            timer_disable(TIMER5);
         };
     }
     NVIC_ClearPendingIRQ(TIMER5_IRQn);

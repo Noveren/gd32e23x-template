@@ -164,34 +164,37 @@ bool app_cmd_get_adc_once(void) {
     return ret;
 }
 
-static bool app_timer_callbackfn(void* _) {
+// static bool app_timer_callbackfn(void* _) {
+//     app_led_toggle();
+//     return true;
+//     // return dvr_adc_convert_once_async();
+// }
+
+bool dvr_timer_callback(void* _) {
     app_led_toggle();
     return true;
-    // return dvr_adc_convert_once_async();
 }
 
 bool app_cmd_set_adc_timer_start(void) {
     app_log_debug("Execute `app_cmd_set_adc_timer_start`.");
-
-    dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
-    dvr_timer_init(dvr_timer_FREQ_100US);
-    dvr_timer_enable(10000, app_timer_callbackfn);
-    const volatile uint16_t* result = NULL;
-    for (;;) {
-        if (app_gets_or_NULL() != NULL) {
-            break;
-        }
-        if ((result = dvr_adc_get_result()) != NULL) {
-            app_putframe_header_text(24);
-            dvr_io_putbytes_text((const uint8_t *)result, 8, ' ');
-            app_putframe_footer();
-        }
-    }
-    dvr_timer_disable();
-    dvr_timer_deinit();
-
-    dvr_adc_deinit();
-
+    dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3); do {
+        const volatile uint16_t* result = NULL;
+        dvr_timer_init(dvr_timer_FREQ_100US); do {
+            if (dvr_timer_enable(10000)) {
+                for (;;) {
+                    if (app_gets_or_NULL() != NULL) {
+                        break;
+                    }
+                    if ((result = dvr_adc_get_result()) != NULL) {
+                        app_putframe_header_text(24);
+                        dvr_io_putbytes_text((const uint8_t *)result, 8, ' ');
+                        app_putframe_footer();
+                    }
+                }
+                dvr_timer_disable();
+            }
+        } while (0); dvr_timer_deinit();
+    } while (0); dvr_adc_deinit();
     return true;
 }
 
@@ -388,21 +391,23 @@ bool app_cmd_collect_signal_with_triger(void) {
 
 bool app_cmd_test_timer(void) {
     app_log_debug("Execute `app_cmd_test_timer`.");
-    bool ret = true;
-    dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
-
-    const volatile uint16_t* result = NULL; /// volatile 防止编译器优化
-    // uint16_t result_buf[4] = { 0 };
-    uint16_t counter = 0;
-    dvr_timer_init(dvr_timer_FREQ_20US);
-    dvr_timer_enable(2, app_timer_callbackfn);
-    for (;;) {
-        if (app_gets_or_NULL() != NULL) {
+    bool status = true;
+    status = dvr_timer_init(dvr_timer_FREQ_5US); do {
+        if (!status) {
+            app_print("Failed to init timer.");
             break;
         }
-    }
-    dvr_timer_disable();
-    dvr_timer_deinit();
-    dvr_adc_deinit();
-    return ret;
+        status = dvr_timer_enable(10);
+        if (!status) {
+            app_print("Failed to enable timer.");
+            break;
+        }
+        for (;;) {
+            if (app_gets_or_NULL() != NULL) {
+                break;
+            }
+        }
+        dvr_timer_disable();
+    } while (0); dvr_timer_deinit();
+    return true;
 }

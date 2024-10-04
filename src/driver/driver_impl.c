@@ -335,15 +335,23 @@ const volatile uint16_t* __impl_dvr_adc_get_result(void) {
     }
 }
 
-void __impl_dvr_timer_init(uint32_t dvr_timer_FREQ) {
+bool __impl_dvr_timer_init(uint32_t dvr_timer_FREQ) {
     uint32_t ck_timer_clock = rcu_clock_freq_get(CK_APB2);
     if (GET_BITS(RCU_CFG0, 11, 13) >= 0b100) {
         ck_timer_clock <<= 1;
     }
+    if (dvr_timer_FREQ * 2 > ck_timer_clock) {
+        return false;
+    }
+    if (dvr_timer_FREQ <= (ck_timer_clock / 0xFFFF)) {
+        return false;
+    }
+    const uint16_t psc = (uint16_t)(ck_timer_clock / dvr_timer_FREQ);
     rcu_periph_clock_enable(RCU_TIMER5);
     timer_deinit(TIMER5);
-    timer_prescaler_config(TIMER5, ((uint16_t)(ck_timer_clock / dvr_timer_FREQ)) - 1, TIMER_PSC_RELOAD_NOW);
+    timer_prescaler_config(TIMER5, psc - 1, TIMER_PSC_RELOAD_NOW);
     nvic_irq_enable(TIMER5_IRQn, 3);
+    return true;
 }
 
 void __impl_dvr_timer_deinit(void) {
@@ -351,24 +359,28 @@ void __impl_dvr_timer_deinit(void) {
     rcu_periph_clock_disable(RCU_TIMER5);
 }
 
-CallbackFn __impl_dvr_timer_timer5_callbackfn = NULL;   /// TODO 此处不能加 volatile, 否则导致 HardFault
-bool __impl_dvr_timer_enable(uint16_t step, CallbackFn fn) {
-    if (__impl_dvr_timer_timer5_callbackfn != NULL) {
+// CallbackFn __impl_dvr_timer_timer5_callbackfn = NULL;   /// TODO 此处不能加 volatile, 否则导致 HardFault
+__WEAK bool dvr_timer_callback(void* _) { return false; }
+
+bool __impl_dvr_timer_enable(uint16_t step) {
+    if (step <= 1) {
+        return false;
+    }
+    if ((TIMER_CTL0(TIMER5) & (uint32_t)TIMER_CTL0_CEN) != 0) {
         return false;
     }
     timer_interrupt_enable(TIMER5, TIMER_INT_UP);
     timer_enable(TIMER5);
-    __impl_dvr_timer_timer5_callbackfn = fn;
-    timer_autoreload_value_config(TIMER5, step == 0 ? 0 : step-1);
+    /// TODO autoreload 为 0 时计时器异常
+    timer_autoreload_value_config(TIMER5, step-1);
     return true;
 }
 
 void __impl_dvr_timer_disable(void) {
-    __impl_dvr_timer_timer5_callbackfn = NULL;
     timer_disable(TIMER5);
     timer_interrupt_disable(TIMER5, TIMER_INT_UP);
 }
 
 bool __impl_dvr_timer_is_working(void) {
-    return __impl_dvr_timer_timer5_callbackfn != NULL;
+    return (TIMER_CTL0(TIMER5) & (uint32_t)TIMER_CTL0_CEN) != 0;
 }
