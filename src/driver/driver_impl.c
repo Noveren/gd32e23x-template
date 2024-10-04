@@ -232,6 +232,11 @@ uint8_t __impl_dvr_spi_access_data(uint8_t byte) {
     return (uint8_t)SPI_DATA(SPI0);
 }
 
+void __impl_dvr_spi_write_data(uint8_t byte) {
+    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+    SPI_DATA(SPI0) = ((uint32_t)(byte));
+}
+
 static volatile uint16_t __impl_dvr_adc_BUF[4] = { 0xAAAA, 0xBBBB, 0xCCCC, 0xDDDD };
 void __impl_dvr_adc_init(const uint8_t dvr_adc_CHANNEL) {
     rcu_periph_clock_enable(RCU_ADC);
@@ -369,6 +374,7 @@ bool __impl_dvr_timer_enable(uint16_t step) {
     if ((TIMER_CTL0(TIMER5) & (uint32_t)TIMER_CTL0_CEN) != 0) {
         return false;
     }
+    timer_counter_value_config(TIMER5, 0);
     timer_interrupt_enable(TIMER5, TIMER_INT_UP);
     timer_enable(TIMER5);
     /// TODO autoreload 为 0 时计时器异常

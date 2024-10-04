@@ -31,6 +31,7 @@ NEED_IMPL void __impl_dvr_spi_disable(void);
 NEED_IMPL void __impl_dvr_spi_select(void);
 NEED_IMPL void __impl_dvr_spi_release(void);
 NEED_IMPL uint8_t __impl_dvr_spi_access_data(uint8_t byte);
+NEED_IMPL void __impl_dvr_spi_write_data(uint8_t byte);
 
 typedef enum {
     dvr_adc_CHANNEL_0 = 0x01,
@@ -91,6 +92,7 @@ __STATIC_FORCEINLINE void dvr_spi_disable(void) { __impl_dvr_spi_disable(); }
 __STATIC_FORCEINLINE void dvr_spi_select(void) { __impl_dvr_spi_select(); }
 __STATIC_FORCEINLINE void dvr_spi_release(void) { __impl_dvr_spi_release(); }
 __STATIC_FORCEINLINE uint8_t dvr_spi_access_data(uint8_t byte) { return __impl_dvr_spi_access_data(byte); }
+__STATIC_FORCEINLINE void dvr_spi_write_data(uint8_t byte) { __impl_dvr_spi_write_data(byte); }
 
 /// ===============================================================
 
@@ -98,6 +100,13 @@ __STATIC_FORCEINLINE void dvr_adc_init(const uint8_t dvr_adc_CHANNEL) { __impl_d
 __STATIC_FORCEINLINE void dvr_adc_deinit(void) { __impl_dvr_adc_deinit(); }
 __STATIC_FORCEINLINE bool dvr_adc_convert_once_async(void) { return __impl_dvr_adc_convert_once_async(); }
 __STATIC_FORCEINLINE const volatile uint16_t* dvr_adc_get_result(void) { return __impl_dvr_adc_get_result(); }
+/// 3.3V 12bit
+#define dvr_adc_0p1V 0x007D     /// 124
+#define dvr_adc_0p2V 0x00FA     /// 250
+#define dvr_adc_0p3V 0x0174     /// 372
+#define dvr_adc_0p4V 0x01F0     /// 496
+#define dvr_adc_0p5V 0x026C     /// 620
+#define dvr_adc_1p0V 0x04D9     /// 1241
 
 /// ===============================================================
 

@@ -204,6 +204,7 @@ app_cmd_set_adc_timer_start_deinit:
 
 /// CK_SYS = 32MHz, CK_SPI = 16MHz, CK_ADC = 14MHz
 /// ADC_DMA = (13.5-10.5us, 7.5-8.7us), SPI = 6.5us, LOGIC = 1.2us
+/// 11.79us(正常循环) - 10.0us(循环展开) - 6.41us(寄存器)
 bool app_cmd_collect_signal(void) {
     app_log_debug("Execute `app_cmd_collect_signal`.");
     bool status = true;
@@ -216,24 +217,18 @@ bool app_cmd_collect_signal(void) {
         goto app_cmd_collect_signal_deinit;
     }
 
-    // /// 检查铁电存储器是否允许写入
-    // dvr_spi_enable();
-    // dvr_spi_select();
-    // dvr_spi_access_data(app_FRAM_OPCODE_RDSR);
-    // status = (dvr_spi_access_data(app_FRAM_OPCODE_NOP) & 0x02) != 0;
-    // dvr_spi_release();
-    // dvr_spi_disable();
-    // status = true;
-    // if (!status) {
-    //     app_print("The FRAM does not allow writing.");
-    //     goto app_cmd_collect_signal_deinit;
-    // }
-// #if DEBUG
-//     app_led_on();
-//     app_delay_ms(1);
-//     app_led_off();
-//     app_delay_ms(1);
-// #endif
+    /// 检查铁电存储器是否允许写入
+    dvr_spi_enable();
+    dvr_spi_select();
+    dvr_spi_access_data(app_FRAM_OPCODE_RDSR);
+    status = (dvr_spi_access_data(app_FRAM_OPCODE_NOP) & 0x02) != 0;
+    dvr_spi_release();
+    dvr_spi_disable();
+    status = true;
+    if (!status) {
+        app_print("The FRAM does not allow writing.");
+        goto app_cmd_collect_signal_deinit;
+    }
 
     dvr_spi_enable();
     dvr_spi_select();
@@ -255,10 +250,7 @@ bool app_cmd_collect_signal(void) {
                 if (counter >= 8192) {
                     break;
                 } else if ((result = dvr_adc_get_result()) != NULL) {
-                    app_led_toggle();
-#if DEBUG
-                    // app_led_toggle();   /// start
-#endif
+                    // app_led_toggle(); 
                     counter += 1;
                     /// 缓存结果
                     temp[0] = result[0];
@@ -266,9 +258,7 @@ bool app_cmd_collect_signal(void) {
                     temp[2] = result[2];
                     temp[3] = result[3];
                     result = NULL;
-#if DEBUG
-                    // app_led_toggle();   /// 1.2us
-#endif
+                    // app_led_toggle();
                     /// 存入 FRAM，改为大端先行
 
                     // for (uint8_t i = 0; i < 4; i++) {
@@ -301,12 +291,11 @@ bool app_cmd_collect_signal(void) {
                     SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[7];
                     while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
                     SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[6];
-#if DEBUG
-                    // app_led_toggle();   /// 11.79us(正常循环) - 10.0us(循环展开) - 6.41us(寄存器)
-#endif
+                    // app_led_toggle();
                 }
             }
         }
+        dvr_timer_disable();
     }
     dvr_spi_release();
     dvr_spi_disable();
@@ -319,128 +308,167 @@ app_cmd_collect_signal_deinit:
 
 bool app_cmd_collect_signal_with_triger(void) {
     app_log_debug("Execute `app_cmd_collect_signal_with_triger`.");
-    bool ret = true;
-    // const volatile uint16_t* result = NULL; /// volatile 防止编译器优化
-    // uint16_t counter = 0;
-    // uint16_t result_buf[4] = { 0 };
-    // uint16_t buf[1024] = { 0 }; /// 1024*2byte 共能够存储 256 组 4 通道 (每通道 2byte) 数据
+    bool status = true;
 
-    // dvr_spi_init();
+    const volatile uint16_t* result = NULL;
 
-    // uint8_t reg = 0;
-    // dvr_spi_enable();
-    // dvr_spi_select();
-    // dvr_spi_access_data(app_FRAM_OPCODE_RDSR);
-    // reg = dvr_spi_access_data(app_FRAM_OPCODE_NOP);
-    // dvr_spi_release();
-    // dvr_spi_disable();
-    // if ((reg & 0x02) == 0) {
-    //     ret = false;
-    // } else {
-    //     dvr_spi_enable();
-    //     dvr_spi_select();
-    //     dvr_spi_access_data(app_FRAM_OPCODE_WRITE);
-    //     dvr_spi_access_data(0x00);
-    //     dvr_spi_access_data(0x00);
+    dvr_spi_init();
+    dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
+    status = dvr_timer_init(dvr_timer_FREQ_5US);
+    if (!status) {
+        app_print("Failed to initialize the timer.");
+        goto app_cmd_collect_signal_with_triger_deinit;
+    }
 
-    //     app_led_on();
-    //     dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
-    //     dvr_timer_init(dvr_timer_FREQ_100US);
-    //     dvr_timer_enable(10, app_timer_callbackfn);
-    //     uint32_t mean = 0;
-    //     if (ret) {
-    //         #define MEAN_NUM_SHIFT 10 /// 1024
-    //         counter = 0;
-    //         result = NULL;
-    //         for (;;) {
-    //             if (!dvr_timer_is_working()) {
-    //                 app_log_debug("dvr timer is not working");
-    //                 ret = false;
-    //                 break;
-    //             } else {
-    //                 if (counter >= 1024) {
-    //                     ret = true;
-    //                     break;
-    //                 }
-    //                 if ((result = dvr_adc_get_result()) != NULL) {
-    //                     counter += 1;
-    //                     mean += result[0];
-    //                 }
-    //             }
-    //         }
-    //         mean = mean >> 10;
-    //         #undef MEAN_NUM_SHIFT
-    //     }
-    //     bool flag_triger = false;
-    //     uint16_t idx = 0;
-    //     if (ret) {
-    //         result = NULL;
-    //         for (;;) {
-    //             if (!dvr_timer_is_working()) {
-    //                 app_log_debug("dvr timer is not working");
-    //                 ret = false;
-    //                 break;
-    //             } else {
-    //                 if ((result = dvr_adc_get_result()) != NULL) {
-    //                     buf[idx+0] = result[0];
-    //                     buf[idx+1] = result[1];
-    //                     buf[idx+2] = result[2];
-    //                     buf[idx+3] = result[3];
-    //                     #define THRESHOLD 0x00FA    /// 0.2V
-    //                     if ((mean + THRESHOLD) < buf[idx+0] || mean > (buf[idx+0] + THRESHOLD)) {
-    //                         flag_triger = true;
-    //                         break;
-    //                     } else {
-    //                         idx = (idx >= 2048) ? 0 : idx+4;
-    //                     }
-    //                     #undef THRESHOLD
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     app_led_off();
-    //     /// 采集触发后的信号，并填充触发前的信号
-    //     if (ret && flag_triger) {
-    //         counter = 0;
-    //         result = NULL;
-    //         for (;;) {
-    //             if (!dvr_timer_is_working()) {
-    //                 ret = false;
-    //                 break;
-    //             } else {
-    //                 if (counter >= (8192 - 512)) {    /// 65536byte 共能够存储 8192 组 4 通道 (每通道 2byte) 数据
-    //                     break;
-    //                 }
-    //                 if ((result = dvr_adc_get_result()) != NULL) {
-    //                     counter += 1;
-    //                     result_buf[0] = result[0] | 0x8000;
-    //                     result_buf[1] = result[1] | 0x8000;
-    //                     result_buf[2] = result[2] | 0x8000;
-    //                     result_buf[3] = result[3] | 0x8000;
-    //                     for (uint8_t i = 0; i < 8; i++) {
-    //                         dvr_spi_access_data(((const uint8_t*)result_buf)[i]);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //         dvr_timer_disable();
+    /// 检查铁电存储器是否允许写入
+    dvr_spi_enable();
+    dvr_spi_select();
+    dvr_spi_access_data(app_FRAM_OPCODE_RDSR);
+    status = (dvr_spi_access_data(app_FRAM_OPCODE_NOP) & 0x02) != 0;
+    dvr_spi_release();
+    dvr_spi_disable();
+    status = true;
+    if (!status) {
+        app_print("The FRAM does not allow writing.");
+        goto app_cmd_collect_signal_with_triger_deinit;
+    }
 
-    //         for (counter = 0; counter < 256; counter++) {
-    //             for (uint8_t i = 0; i < 8; i++) {
-    //                 dvr_spi_access_data(((const uint8_t*)buf)[counter * 8 + i]);
-    //             }
-    //         }
-    //     }
-    //     dvr_timer_disable();
-    //     dvr_timer_deinit();
-    //     dvr_adc_deinit();
-    //     dvr_spi_release();
-    //     dvr_spi_disable();
-    // }
+    uint32_t mean_voltage_of_the_first_available_channel = 0;
+    const uint8_t shift = 10;
+    const uint16_t max_sample_times = 0x1 << shift;
+    status = dvr_timer_enable(20);
+    if (!status) {
+        app_print("Failed to enable the timer.");
+        goto app_cmd_collect_signal_with_triger_deinit;
+    } else {
+        for (uint16_t i = 0; i < max_sample_times;) {
+            status = dvr_timer_is_working();
+            if (!status) {
+                app_print("The timer has been disable.");
+                goto app_cmd_collect_signal_with_triger_deinit;
+            } else {
+                if ((result = dvr_adc_get_result()) != NULL) {
+                    i += 1;
+                    mean_voltage_of_the_first_available_channel += result[0];
+                    result = NULL;
+                }
+            }
+        }
+        dvr_timer_disable();
+        mean_voltage_of_the_first_available_channel >>= shift;
+        app_print("The Mean Voltage (MSB) of the first channel.");
+        app_putframe_header_text(8);
+        dvr_io_putbytes_text((uint8_t*)&mean_voltage_of_the_first_available_channel, 4, '\x00');
+        app_putframe_footer();
+    }
 
-    // dvr_spi_deinit();
 
-    return ret;
+    dvr_spi_enable();
+    dvr_spi_select();
+    dvr_spi_access_data(app_FRAM_OPCODE_WRITE);
+    dvr_spi_access_data(0x00);
+    dvr_spi_access_data(0x00);
+#define RING_BUF_GROUP 512
+#define RING_BUF_LENGTH (RING_BUF_GROUP*4)
+    uint16_t ring_buf[RING_BUF_LENGTH] = { 0 };
+    uint16_t temp[4] = { 0 };
+    status = dvr_timer_enable(2);
+    if (!status) {
+        app_print("Failed to enable the timer.");
+        goto app_cmd_collect_signal_with_triger_deinit;
+    } else {
+        uint16_t ring_buf_idx = 0;
+        app_led_on();
+        for (;;) {
+            status = dvr_timer_is_working();
+            if (!status) {
+                app_print("The timer has been disable.");
+                goto app_cmd_collect_signal_with_triger_deinit;
+            } else {
+                if ((result = dvr_adc_get_result()) != NULL) {
+                    ring_buf[ring_buf_idx + 0] = result[0];
+                    ring_buf[ring_buf_idx + 1] = result[1];
+                    ring_buf[ring_buf_idx + 2] = result[2];
+                    ring_buf[ring_buf_idx + 3] = result[3];
+                    ring_buf_idx = ((ring_buf_idx+4) >= RING_BUF_LENGTH) ? 0 : (ring_buf_idx+4);
+#define THRESHOLD dvr_adc_0p2V
+                    if (   ((mean_voltage_of_the_first_available_channel + THRESHOLD) < result[0])
+                        || ((result[0] + THRESHOLD) < mean_voltage_of_the_first_available_channel)
+                    ) {
+                        break;
+                    }
+#undef THRESHOLD
+                    result = NULL;
+                }
+            }
+        }
+        app_led_off();
+
+        for (uint32_t i = 0; i < 8192 - RING_BUF_GROUP;) {
+            status = dvr_timer_is_working();
+            if (!status) {
+                app_print("The timer has been disable.");
+                goto app_cmd_collect_signal_with_triger_deinit;
+            } else {
+                if ((result = dvr_adc_get_result()) != NULL) {
+                    i += 1;
+                    temp[0] = (result[0] | 0x8000);
+                    temp[1] = (result[1] | 0x8000);
+                    temp[2] = (result[2] | 0x8000);
+                    temp[3] = (result[3] | 0x8000);
+                    result = NULL;
+
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[1];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[0];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[3];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[2];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[5];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[4];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[7];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[6];
+                }
+            }
+        }
+        dvr_timer_disable();
+
+        for (uint32_t i = ring_buf_idx; i < RING_BUF_LENGTH; i += 4) {
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[1]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[0]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[3]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[2]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[5]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[4]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[7]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[6]);
+        }
+        for (uint32_t i = 0; i < ring_buf_idx; i += 4) {
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[1]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[0]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[3]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[2]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[5]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[4]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[7]);
+            dvr_spi_write_data(((uint8_t*)&(ring_buf[i]))[6]);
+        }
+#undef RING_BUF_LENGTH
+#undef RING_BUF_GROUP
+    }
+    dvr_spi_release();
+    dvr_spi_disable();
+app_cmd_collect_signal_with_triger_deinit:
+    dvr_timer_deinit();
+    dvr_adc_deinit();
+    dvr_spi_deinit();
+    return status;
 }
 
 // bool app_cmd_test_timer(void) {

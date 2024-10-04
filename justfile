@@ -41,3 +41,6 @@ flash name=default_name:
 
 reset:
     pyocd reset --target=gd32e230k8
+
+show:
+    cd ./tool && python ./main.py
