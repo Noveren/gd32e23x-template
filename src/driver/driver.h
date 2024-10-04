@@ -43,10 +43,13 @@ NEED_IMPL bool __impl_dvr_adc_convert_once_async(void);
 NEED_IMPL const volatile uint16_t* __impl_dvr_adc_get_result(void);
 
 #define dvr_timer_FREQ_100US 10000
+#define dvr_timer_FREQ_50US  20000
+#define dvr_timer_FREQ_20US  50000
 #define dvr_timer_FREQ_10US  100000
+#define dvr_timer_FREQ_5US   200000
 NEED_IMPL void __impl_dvr_timer_init(uint32_t dvr_timer_FREQ);
 NEED_IMPL void __impl_dvr_timer_deinit(void);
-NEED_IMPL bool __impl_dvr_timer_enable(uint16_t autoreload, CallbackFn fn);
+NEED_IMPL bool __impl_dvr_timer_enable(uint16_t step, CallbackFn fn);
 NEED_IMPL void __impl_dvr_timer_disable(void);
 NEED_IMPL bool __impl_dvr_timer_is_working(void);
 
@@ -97,7 +100,7 @@ __STATIC_FORCEINLINE const volatile uint16_t* dvr_adc_get_result(void) { return 
 
 __STATIC_FORCEINLINE void dvr_timer_init(uint32_t dvr_timer_FREQ) { __impl_dvr_timer_init(dvr_timer_FREQ); }
 __STATIC_FORCEINLINE void dvr_timer_deinit(void) { __impl_dvr_timer_deinit(); }
-__STATIC_FORCEINLINE bool dvr_timer_enable(uint16_t autoreload, CallbackFn fn) { return __impl_dvr_timer_enable(autoreload, fn); }
+__STATIC_FORCEINLINE bool dvr_timer_enable(uint16_t step, CallbackFn fn) { return __impl_dvr_timer_enable(step, fn); }
 __STATIC_FORCEINLINE void dvr_timer_disable(void) { __impl_dvr_timer_disable(); }
 __STATIC_FORCEINLINE bool dvr_timer_is_working(void) { return __impl_dvr_timer_is_working(); }
 

@@ -351,15 +351,15 @@ void __impl_dvr_timer_deinit(void) {
     rcu_periph_clock_disable(RCU_TIMER5);
 }
 
-CallbackFn __impl_dvr_timer_timer5_callbackfn = NULL;
-bool __impl_dvr_timer_enable(uint16_t autoreload, CallbackFn fn) {
+CallbackFn __impl_dvr_timer_timer5_callbackfn = NULL;   /// TODO 此处不能加 volatile, 否则导致 HardFault
+bool __impl_dvr_timer_enable(uint16_t step, CallbackFn fn) {
     if (__impl_dvr_timer_timer5_callbackfn != NULL) {
         return false;
     }
     timer_interrupt_enable(TIMER5, TIMER_INT_UP);
     timer_enable(TIMER5);
     __impl_dvr_timer_timer5_callbackfn = fn;
-    timer_autoreload_value_config(TIMER5, autoreload == 0 ? 1 : autoreload);
+    timer_autoreload_value_config(TIMER5, step == 0 ? 0 : step-1);
     return true;
 }
 

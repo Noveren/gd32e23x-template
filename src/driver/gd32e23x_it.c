@@ -4,11 +4,11 @@
 
 /// Non Maskable Interrupt
 void NMI_Handler(void) {
-
+    usart_data_transmit(USART0, 'N');
 }
 
 void HardFault_Handler(void) {
-
+    usart_data_transmit(USART0, 'H');
 }
 
 /// Service Call
@@ -49,7 +49,7 @@ void RTC_IRQHandler(void) {
     }
 }
 
-extern CallbackFn __impl_dvr_timer_timer5_callbackfn;
+extern CallbackFn __impl_dvr_timer_timer5_callbackfn;   /// TODO 此处不能加 volatile
 extern void __impl_dvr_timer_disable(void);
 void TIMER5_IRQHandler(void) {
     if (timer_interrupt_flag_get(TIMER5, TIMER_INT_FLAG_UP)) {
