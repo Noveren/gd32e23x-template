@@ -4,11 +4,19 @@
 
 /// Non Maskable Interrupt
 void NMI_Handler(void) {
-    usart_data_transmit(USART0, 'N');
+    const char* cstr = "NMI_Handler";
+    for (uint8_t i = 0; cstr[i]; i++) {
+        USART_TDATA(USART0) = (USART_TDATA_TDATA & cstr[i]);
+    }
+    for (;;) {}
 }
 
 void HardFault_Handler(void) {
-    usart_data_transmit(USART0, 'H');
+    const char* cstr = "HardFault_Handler";
+    for (uint8_t i = 0; cstr[i]; i++) {
+        USART_TDATA(USART0) = (USART_TDATA_TDATA & cstr[i]);
+    }
+    for (;;) {}
 }
 
 /// Service Call

@@ -31,6 +31,6 @@
 /// ADC - GPIOA (PA0, PA1, PA2, PA3)
 #define __impl_dvr_adc_ADC_RESOLUTION ADC_RESOLUTION_12B
 #define __impl_dvr_adc_ADC_DATAALIGN ADC_DATAALIGN_RIGHT
-#define __impl_dvr_adc_ADC_SAMPLETIME ADC_SAMPLETIME_13POINT5
+#define __impl_dvr_adc_ADC_SAMPLETIME ADC_SAMPLETIME_7POINT5
 
 #endif

@@ -164,103 +164,157 @@ bool app_cmd_get_adc_once(void) {
     return ret;
 }
 
-// static bool app_timer_callbackfn(void* _) {
-//     app_led_toggle();
-//     return true;
-//     // return dvr_adc_convert_once_async();
-// }
-
 bool dvr_timer_callback(void* _) {
-    app_led_toggle();
-    return true;
+    return dvr_adc_convert_once_async();
 }
 
 bool app_cmd_set_adc_timer_start(void) {
     app_log_debug("Execute `app_cmd_set_adc_timer_start`.");
-    dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3); do {
-        const volatile uint16_t* result = NULL;
-        dvr_timer_init(dvr_timer_FREQ_100US); do {
-            if (dvr_timer_enable(10000)) {
-                for (;;) {
-                    if (app_gets_or_NULL() != NULL) {
-                        break;
-                    }
-                    if ((result = dvr_adc_get_result()) != NULL) {
-                        app_putframe_header_text(24);
-                        dvr_io_putbytes_text((const uint8_t *)result, 8, ' ');
-                        app_putframe_footer();
-                    }
-                }
-                dvr_timer_disable();
-            }
-        } while (0); dvr_timer_deinit();
-    } while (0); dvr_adc_deinit();
-    return true;
+    bool status = true;
+
+    dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
+    status = dvr_timer_init(dvr_timer_FREQ_100US);
+    if (!status) {
+        app_print("Failed to init timer.");
+        goto app_cmd_set_adc_timer_start_deinit;
+    }
+    status = dvr_timer_enable(10000);
+    if (!status) {
+        app_print("Failed to enable timer.");
+        goto app_cmd_set_adc_timer_start_deinit;
+    }
+    const volatile uint16_t* result = NULL;
+    for (;;) {
+        if (app_gets_or_NULL() != NULL) {
+            break;
+        }
+        if ((result = dvr_adc_get_result()) != NULL) {
+            app_putframe_header_text(24);
+            dvr_io_putbytes_text((const uint8_t *)result, 8, ' ');
+            app_putframe_footer();
+        }
+    }
+    dvr_timer_disable();
+app_cmd_set_adc_timer_start_deinit:
+    dvr_timer_deinit();
+    dvr_adc_deinit();
+
+    return status;
 }
 
+/// CK_SYS = 32MHz, CK_SPI = 16MHz, CK_ADC = 14MHz
+/// ADC_DMA = (13.5-10.5us, 7.5-8.7us), SPI = 6.5us, LOGIC = 1.2us
 bool app_cmd_collect_signal(void) {
     app_log_debug("Execute `app_cmd_collect_signal`.");
-    bool ret = true;
+    bool status = true;
 
-//     dvr_spi_init();
+    dvr_spi_init();
+    dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
+    status = dvr_timer_init(dvr_timer_FREQ_5US);
+    if (!status) {
+        app_print("Failed to initialize the timer.");
+        goto app_cmd_collect_signal_deinit;
+    }
 
-//     uint8_t reg = 0;
-//     dvr_spi_enable();
-//     dvr_spi_select();
-//     dvr_spi_access_data(app_FRAM_OPCODE_RDSR);
-//     reg = dvr_spi_access_data(app_FRAM_OPCODE_NOP);
-//     dvr_spi_release();
-//     dvr_spi_disable();
-//     if ((reg & 0x02) == 0) {
-//         ret = false;
-//     } else {
-//         dvr_spi_enable();
-//         dvr_spi_select();
-//         dvr_spi_access_data(app_FRAM_OPCODE_WRITE);
-//         dvr_spi_access_data(0x00);
-//         dvr_spi_access_data(0x00);
+    // /// 检查铁电存储器是否允许写入
+    // dvr_spi_enable();
+    // dvr_spi_select();
+    // dvr_spi_access_data(app_FRAM_OPCODE_RDSR);
+    // status = (dvr_spi_access_data(app_FRAM_OPCODE_NOP) & 0x02) != 0;
+    // dvr_spi_release();
+    // dvr_spi_disable();
+    // status = true;
+    // if (!status) {
+    //     app_print("The FRAM does not allow writing.");
+    //     goto app_cmd_collect_signal_deinit;
+    // }
+// #if DEBUG
+//     app_led_on();
+//     app_delay_ms(1);
+//     app_led_off();
+//     app_delay_ms(1);
+// #endif
 
-//         dvr_adc_init(dvr_adc_CHANNEL_0 | dvr_adc_CHANNEL_1 | dvr_adc_CHANNEL_2 | dvr_adc_CHANNEL_3);
+    dvr_spi_enable();
+    dvr_spi_select();
+    dvr_spi_access_data(app_FRAM_OPCODE_WRITE);
+    dvr_spi_access_data(0x00);
+    dvr_spi_access_data(0x00);
+    const volatile uint16_t* result = NULL;
+    uint16_t temp[4] = { 0 };
+    uint16_t counter = 0;
+    status = dvr_timer_enable(2);
+    if (!status) {
+        app_print("Failed to enable the timer.");
+    } else {
+        for (;;) {
+            if (!dvr_timer_is_working()) {
+                app_print("The timer has been disable.");
+                break;
+            } else {
+                if (counter >= 8192) {
+                    break;
+                } else if ((result = dvr_adc_get_result()) != NULL) {
+                    app_led_toggle();
+#if DEBUG
+                    // app_led_toggle();   /// start
+#endif
+                    counter += 1;
+                    /// 缓存结果
+                    temp[0] = result[0];
+                    temp[1] = result[1];
+                    temp[2] = result[2];
+                    temp[3] = result[3];
+                    result = NULL;
+#if DEBUG
+                    // app_led_toggle();   /// 1.2us
+#endif
+                    /// 存入 FRAM，改为大端先行
 
-//         const volatile uint16_t* result = NULL; /// volatile 防止编译器优化
-//         uint16_t result_buf[4] = { 0 };
-//         uint16_t counter = 0;
-//         dvr_timer_init(dvr_timer_FREQ_5US);
-//         dvr_timer_enable(4, app_timer_callbackfn);
-//         for (;;) {
-//             if (!dvr_timer_is_working()) {
-//                 ret = false;
-//                 break;
-//             } else {
-//                 if (counter >= (8192)) {    /// 65536byte 共能够存储 8192 组 4 通道 (每通道 2byte) 数据
-//                     break;
-//                 }
-//                 if ((result = dvr_adc_get_result()) != NULL) {
-//                     counter += 1;
-//                     /// 缓存结果
-//                     // result_buf[0] = result[0];
-//                     // result_buf[1] = result[1];
-//                     // result_buf[2] = result[2];
-//                     // result_buf[3] = result[3];
-//                     /// 存入 FRAM，改为大端先行
-//                     // for (uint8_t i = 0; i < 4; i++) {
-//                     //     dvr_spi_access_data(((const uint8_t*)result_buf)[2*i + 1]);
-//                     //     dvr_spi_access_data(((const uint8_t*)result_buf)[2*i    ]);
-//                     // }
-//                 }
-//             }
-//         }
-//         dvr_timer_disable();
-//         dvr_timer_deinit();
+                    // for (uint8_t i = 0; i < 4; i++) {
+                    //     dvr_spi_access_data(((const uint8_t*)temp)[2*i + 1]);
+                    //     dvr_spi_access_data(((const uint8_t*)temp)[2*i    ]);
+                    // }
 
-//         dvr_spi_release();
-//         dvr_spi_disable();
-
-//         dvr_adc_deinit();
-//     }
-//     dvr_spi_deinit();
-
-    return ret;
+                    // dvr_spi_access_data(((const uint8_t*)temp)[1]);
+                    // dvr_spi_access_data(((const uint8_t*)temp)[0]);
+                    // dvr_spi_access_data(((const uint8_t*)temp)[3]);
+                    // dvr_spi_access_data(((const uint8_t*)temp)[2]);
+                    // dvr_spi_access_data(((const uint8_t*)temp)[5]);
+                    // dvr_spi_access_data(((const uint8_t*)temp)[4]);
+                    // dvr_spi_access_data(((const uint8_t*)temp)[7]);
+                    // dvr_spi_access_data(((const uint8_t*)temp)[6]);
+                    
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[1];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[0];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[3];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[2];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[5];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[4];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[7];
+                    while (!(RESET != (SPI_STAT(SPI0) & SPI_FLAG_TBE)));
+                    SPI_DATA(SPI0) = (uint32_t)((const uint8_t*)temp)[6];
+#if DEBUG
+                    // app_led_toggle();   /// 11.79us(正常循环) - 10.0us(循环展开) - 6.41us(寄存器)
+#endif
+                }
+            }
+        }
+    }
+    dvr_spi_release();
+    dvr_spi_disable();
+app_cmd_collect_signal_deinit:
+    dvr_timer_deinit();
+    dvr_adc_deinit();
+    dvr_spi_deinit();
+    return status;
 }
 
 bool app_cmd_collect_signal_with_triger(void) {
@@ -389,25 +443,25 @@ bool app_cmd_collect_signal_with_triger(void) {
     return ret;
 }
 
-bool app_cmd_test_timer(void) {
-    app_log_debug("Execute `app_cmd_test_timer`.");
-    bool status = true;
-    status = dvr_timer_init(dvr_timer_FREQ_5US); do {
-        if (!status) {
-            app_print("Failed to init timer.");
-            break;
-        }
-        status = dvr_timer_enable(10);
-        if (!status) {
-            app_print("Failed to enable timer.");
-            break;
-        }
-        for (;;) {
-            if (app_gets_or_NULL() != NULL) {
-                break;
-            }
-        }
-        dvr_timer_disable();
-    } while (0); dvr_timer_deinit();
-    return true;
-}
+// bool app_cmd_test_timer(void) {
+//     app_log_debug("Execute `app_cmd_test_timer`.");
+//     bool status = true;
+//     status = dvr_timer_init(dvr_timer_FREQ_5US); do {
+//         if (!status) {
+//             app_print("Failed to init timer.");
+//             break;
+//         }
+//         status = dvr_timer_enable(10);
+//         if (!status) {
+//             app_print("Failed to enable timer.");
+//             break;
+//         }
+//         for (;;) {
+//             if (app_gets_or_NULL() != NULL) {
+//                 break;
+//             }
+//         }
+//         dvr_timer_disable();
+//     } while (0); dvr_timer_deinit();
+//     return true;
+// }

@@ -6,7 +6,7 @@ void app_init(void) {
     /* pa15 init */
     rcu_periph_clock_enable(RCU_GPIOA);
     gpio_mode_set(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO_PIN_15);
-    gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_2MHZ, GPIO_PIN_15);
+    gpio_output_options_set(GPIOA, GPIO_OTYPE_OD, GPIO_OSPEED_10MHZ, GPIO_PIN_15);
     gpio_bit_set(GPIOA, GPIO_PIN_15);
 
     dvr_init();
